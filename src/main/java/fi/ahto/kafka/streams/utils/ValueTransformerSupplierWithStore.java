@@ -27,7 +27,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         implements ValueTransformerSupplier<V, VR> {
     
     private final String stateStoreName;
-    private final ValueTransformerImpl<V, VR> transformer;
+    private final ValueTransformerImpl transformer;
     private final StoreBuilder<KeyValueStore<K, V>> stateStore;
 
     /**
@@ -55,7 +55,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
      *
      * @return
      */
-    public abstract ValueTransformerImpl<V, VR> createTransformer();
+    public abstract ValueTransformerImpl createTransformer();
 
     /**
      *
@@ -71,7 +71,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
      * @param <V>
      * @param <VR>
      */
-    public abstract class ValueTransformerImpl<V, VR> implements ValueTransformer<V, VR> {
+    public abstract class ValueTransformerImpl implements ValueTransformer<V, VR> {
 
         /**
          *

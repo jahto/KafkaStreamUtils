@@ -21,11 +21,11 @@ import org.apache.kafka.streams.state.Stores;
  * @param <K>
  * @param <V>
  */
-public abstract class TransformerSupplierWithStore<K, V>
-        implements TransformerSupplier<K, V, KeyValue<K, V>> {
+public abstract class TransformerSupplierWithStore<K, V, VR>
+        implements TransformerSupplier<K, V, KeyValue<K, VR>> {
 
     private final String stateStoreName;
-    private final TransformerImpl<K, V> transformer;
+    private final TransformerImpl transformer;
     private final StoreBuilder<KeyValueStore<K, V>> stateStore;
 
     /**
@@ -52,7 +52,7 @@ public abstract class TransformerSupplierWithStore<K, V>
      *
      * @return
      */
-    public abstract TransformerImpl<K, V> createTransformer();
+    public abstract TransformerImpl createTransformer();
     // public abstract TransformerImpl createTransformer();
 
     /**
@@ -60,7 +60,7 @@ public abstract class TransformerSupplierWithStore<K, V>
      * @return
      */
     @Override
-    public Transformer<K, V, KeyValue<K, V>> get() {
+    public Transformer<K, V, KeyValue<K, VR>> get() {
         return transformer;
     }
 
@@ -69,7 +69,7 @@ public abstract class TransformerSupplierWithStore<K, V>
      * @param <K>
      * @param <V>
      */
-    public abstract class TransformerImpl<K, V> implements Transformer<K, V, KeyValue<K, V>> {
+    public abstract class TransformerImpl implements Transformer<K, V, KeyValue<K, VR>> {
 
         /**
          *
@@ -91,13 +91,7 @@ public abstract class TransformerSupplierWithStore<K, V>
          * @param v
          * @return
          */
-        @Override
-        public KeyValue<K, V> transform(K k, V v) {
-                    V oldVal = stateStore.get(k);
-                    KeyValue<K, V> newVal = transform(k, oldVal, v);
-                    stateStore.put(k, newVal.value);
-                    return newVal;
-        }
+        public abstract KeyValue<K, VR> transform(K k, V v);
 
         /**
          *
@@ -114,7 +108,7 @@ public abstract class TransformerSupplierWithStore<K, V>
          * @return
          */
         @Override
-        public KeyValue<K, V> punctuate(long l) {
+        public KeyValue<K, VR> punctuate(long l) {
             // Not needed and also deprecated.
             return null;
         }
