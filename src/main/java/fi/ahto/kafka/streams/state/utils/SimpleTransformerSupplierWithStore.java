@@ -19,6 +19,8 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.Transformer;
+import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.state.KeyValueStore;
 
 /**
  *
@@ -26,10 +28,11 @@ import org.apache.kafka.streams.kstream.Transformer;
  * @param <K>
  * @param <V>
  */
-public abstract class SimpleTransformerSupplierWithStore<K, V> 
-        extends TransformerSupplierWithStore<K, V, V>
-{
-    
+public abstract class SimpleTransformerSupplierWithStore<K, V>
+        extends TransformerSupplierWithStore<K, V, V> {
+
+    protected final SimpleTransformerExtended<K, V> transformer;
+
     /**
      *
      * @param builder
@@ -39,8 +42,50 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
      */
     public SimpleTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
         super(builder, keyserde, valserde, stateStoreName);
+        this.transformer = createSimpleTransformer();
+
     }
-    
+
+    //@Override
+    // public abstract TransformerImpl<K, V, V> createTransformer();
+    // public abstract TransformerImpl createTransformer();
+    public abstract SimpleTransformerImpl<K, V> createSimpleTransformer();
+
+    @Override
+    public abstract TransformerImpl<K, V, V> createTransformer();
+
+    // public abstract TransformerExtended<K, V, V> createTransformer();
+    // KeyValue<K, VR>>
+    // protected abstract class TransformerSupplierWithStore.TransformerImpl<K, V, V> implements TransformerExtended<K, V, V> static { 
+    // protected abstract class TransformerImpl<K, V, V> implements TransformerExtended<K, V, V> { 
+    protected abstract class SimpleTransformerImpl<K, V>
+            implements SimpleTransformerExtended<K, V> {
+
+        protected KeyValueStore<K, V> stateStore;
+
+        @Override
+        public void init(ProcessorContext pc) {
+            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
+        }
+
+        @Override
+        public final KeyValue<K, V> transform(K k, V v) {
+            V oldVal = stateStore.get(k);
+            V newVal = transformValue(oldVal, v);
+            stateStore.put(k, newVal);
+            KeyValue<K, V> newKeyVal = KeyValue.pair(k, newVal);
+            return newKeyVal;
+        }
+
+        public final KeyValue<K, V> transform(K k, V v1, V v2) {
+            // We do actually not use this method ever, but must implement
+            // it anyway, because the interface requires it.
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
+
+        public abstract V transformValue(V oldVal, V v);
+
+    }
     // Problems getting this one to compile. I'm not getting something right,
     // at least the syntax of how to do it, if it even can be done. The idea
     // is to provide a default implementation for the simplest and probably
@@ -51,12 +96,12 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
     public abstract class SimpleTransformerImpl 
             extends TransformerSupplierWithStore.TransformerImpl
             implements Transformer<K, V, KeyValue<K, V>> {
-        public KeyValue<K, V> transform(K k, V v) {
+        public KeyValue<K, V> transformValue(K k, V v) {
                     V oldVal = stateStore.get(k);
-                    KeyValue<K, V> newVal = transform(k, oldVal, v);
+                    KeyValue<K, V> newVal = transformValue(k, oldVal, v);
                     stateStore.put(k, newVal.value);
                     return newVal;
         }
     }
-    */
+     */
 }

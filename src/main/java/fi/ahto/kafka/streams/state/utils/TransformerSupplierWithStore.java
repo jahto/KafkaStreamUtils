@@ -34,9 +34,8 @@ import org.apache.kafka.streams.state.Stores;
 public abstract class TransformerSupplierWithStore<K, V, VR>
         implements TransformerSupplier<K, V, KeyValue<K, VR>> {
 
-    private final String stateStoreName;
-    private final TransformerImpl transformer;
-    private final StoreBuilder<KeyValueStore<K, V>> stateStore;
+    protected final String stateStoreName;
+    protected final TransformerExtended<K, V, VR> transformer;
 
     /**
      *
@@ -54,7 +53,6 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
                 .withCachingEnabled();
 
         builder.addStateStore(store);
-        this.stateStore = store;
         this.transformer = createTransformer();
     }
 
@@ -62,8 +60,9 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
      *
      * @return
      */
-    public abstract TransformerImpl createTransformer();
+    public abstract TransformerImpl<K, V, VR> createTransformer();
     // public abstract TransformerImpl createTransformer();
+    // public abstract TransformerExtended<K, V, VR> createTransformer();
 
     /**
      *
@@ -73,13 +72,12 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
     public Transformer<K, V, KeyValue<K, VR>> get() {
         return transformer;
     }
-
     /**
      *
      * @param <K>
      * @param <V>
      */
-    public abstract class TransformerImpl implements Transformer<K, V, KeyValue<K, VR>> {
+    protected abstract class TransformerImpl<K, V, VR> implements TransformerExtended<K, V, VR> {
 
         /**
          *
@@ -101,8 +99,10 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
          * @param v
          * @return
          */
+        /*
+        @Override
         public abstract KeyValue<K, VR> transform(K k, V v);
-
+        */
         /**
          *
          * @param k
@@ -110,27 +110,6 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
          * @param v2
          * @return
          */
-        public abstract KeyValue<K, V> transform(K k, V v1, V v2);
-
-        /**
-         *
-         * @param l
-         * @return
-         */
-        @Override
-        public KeyValue<K, VR> punctuate(long l) {
-            // Not needed and also deprecated.
-            return null;
-        }
-
-        /**
-         *
-         */
-        @Override
-        public void close() {
-            // Note: The store should NOT be closed manually here via `stateStore.close()`!
-            // The Kafka Streams API will automatically close stores when necessary.
-        }
+        public abstract KeyValue<K, VR> transform(K k, V v1, VR v2);
     }
-
 }
