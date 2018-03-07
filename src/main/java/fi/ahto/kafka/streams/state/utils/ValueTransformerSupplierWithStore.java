@@ -3,13 +3,14 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package fi.ahto.kafka.streams.utils;
+package fi.ahto.kafka.streams.state.utils;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.Transformer;
-import org.apache.kafka.streams.kstream.TransformerSupplier;
+import org.apache.kafka.streams.kstream.ValueTransformer;
+import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -20,27 +21,29 @@ import org.apache.kafka.streams.state.Stores;
  * @author Jouni Ahto
  * @param <K>
  * @param <V>
+ * @param <VR>
  */
-public abstract class TransformerSupplierWithStore<K, V, VR>
-        implements TransformerSupplier<K, V, KeyValue<K, VR>> {
-
+public abstract class ValueTransformerSupplierWithStore<K, V, VR>
+        implements ValueTransformerSupplier<V, VR> {
+    
     private final String stateStoreName;
-    private final TransformerImpl transformer;
+    private final ValueTransformerImpl transformer;
     private final StoreBuilder<KeyValueStore<K, V>> stateStore;
 
     /**
      *
      * @param builder
-     * @param keyserde
-     * @param valserde
+     * @param serdekey
+     * @param serdein
+     * @param serdeout
      * @param stateStoreName
      */
-    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
+    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> serdekey, Serde<V> serdein, Serde<VR> serdeout, String stateStoreName) {
         this.stateStoreName = stateStoreName;
         StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore(stateStoreName),
-                keyserde,
-                valserde)
+                serdekey,
+                serdein)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
@@ -52,24 +55,23 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
      *
      * @return
      */
-    public abstract TransformerImpl createTransformer();
-    // public abstract TransformerImpl createTransformer();
+    public abstract ValueTransformerImpl createTransformer();
 
     /**
      *
      * @return
      */
     @Override
-    public Transformer<K, V, KeyValue<K, VR>> get() {
+    public ValueTransformer<V, VR> get() {
         return transformer;
     }
 
     /**
      *
-     * @param <K>
      * @param <V>
+     * @param <VR>
      */
-    public abstract class TransformerImpl implements Transformer<K, V, KeyValue<K, VR>> {
+    public abstract class ValueTransformerImpl implements ValueTransformer<V, VR> {
 
         /**
          *
@@ -87,20 +89,19 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
 
         /**
          *
-         * @param k
          * @param v
          * @return
          */
-        public abstract KeyValue<K, VR> transform(K k, V v);
+        @Override
+        public abstract VR transform(V v);
 
         /**
          *
-         * @param k
-         * @param v1
-         * @param v2
+         * @param oldVal
+         * @param newVal
          * @return
          */
-        public abstract KeyValue<K, V> transform(K k, V v1, V v2);
+        public abstract VR transform(V oldVal, V newVal);
 
         /**
          *
@@ -108,7 +109,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
          * @return
          */
         @Override
-        public KeyValue<K, VR> punctuate(long l) {
+        public VR punctuate(long l) {
             // Not needed and also deprecated.
             return null;
         }
@@ -122,5 +123,4 @@ public abstract class TransformerSupplierWithStore<K, V, VR>
             // The Kafka Streams API will automatically close stores when necessary.
         }
     }
-
 }
