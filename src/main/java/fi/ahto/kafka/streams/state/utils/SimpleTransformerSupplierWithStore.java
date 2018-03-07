@@ -36,6 +36,7 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
     // is to provide a default implementation for the simplest and probably
     // most common case where the key doesn't change, and output type of
     // value is the same, it just got transformed in some way.
+    // Maybe Java 8 interfaces with default methods is the right solution.
     /*
     public abstract class SimpleTransformerImpl 
             extends TransformerSupplierWithStore.TransformerImpl
