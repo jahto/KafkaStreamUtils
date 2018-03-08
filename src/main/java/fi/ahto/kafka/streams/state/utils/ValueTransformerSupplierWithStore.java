@@ -19,6 +19,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.Transformer;
+import org.apache.kafka.streams.kstream.TransformerSupplier;
 import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
@@ -36,97 +37,50 @@ import org.apache.kafka.streams.state.Stores;
 public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         implements ValueTransformerSupplier<V, VR> {
     
-    private final String stateStoreName;
-    private final ValueTransformerImpl transformer;
-    private final StoreBuilder<KeyValueStore<K, V>> stateStore;
+    TransformerImpl transformer;
 
-    /**
-     *
-     * @param builder
-     * @param serdekey
-     * @param serdein
-     * @param serdeout
-     * @param stateStoreName
-     */
-    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> serdekey, Serde<V> serdein, Serde<VR> serdeout, String stateStoreName) {
-        this.stateStoreName = stateStoreName;
-        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(
-                Stores.persistentKeyValueStore(stateStoreName),
-                serdekey,
-                serdein)
+    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserdein, Serde<VR> valserdeout, String stateStoreName) {
+        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
+                keyserde,
+                valserdein)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
-        this.stateStore = store;
         this.transformer = createTransformer();
     }
 
-    /**
-     *
-     * @return
-     */
-    public abstract ValueTransformerImpl createTransformer();
+    public abstract TransformerImpl createTransformer();
 
-    /**
-     *
-     * @return
-     */
     @Override
     public ValueTransformer<V, VR> get() {
         return transformer;
     }
 
-    /**
-     *
-     * @param <V>
-     * @param <VR>
-     */
-    public abstract class ValueTransformerImpl implements ValueTransformer<V, VR> {
+    public static abstract class TransformerImpl<K1, V1, VR1> implements ValueTransformer<V1, VR1> {
 
-        /**
-         *
-         */
-        protected KeyValueStore<K, V> stateStore;
+        protected KeyValueStore<K1, V1> stateStore;
+        protected String stateStoreName;
 
-        /**
-         *
-         * @param pc
-         */
+        public TransformerImpl(String name) {
+            this.stateStoreName = name;
+        }
+        
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
+            stateStore = (KeyValueStore<K1, V1>) pc.getStateStore(stateStoreName);
         }
 
-        /**
-         *
-         * @param v
-         * @return
-         */
-        @Override
-        public abstract VR transform(V v);
+        // @Override
+        // public abstract VR1 transform(K1 k, V1 v);
 
-        /**
-         *
-         * @param oldVal
-         * @param newVal
-         * @return
-         */
-        public abstract VR transform(V oldVal, V newVal);
+        // public abstract VR1 transform(K1 k, V1 v1, V1 v2);
 
-        /**
-         *
-         * @param l
-         * @return
-         */
         @Override
-        public VR punctuate(long l) {
+        public VR1 punctuate(long l) {
             // Not needed and also deprecated.
             return null;
         }
 
-        /**
-         *
-         */
         @Override
         public void close() {
             // Note: The store should NOT be closed manually here via `stateStore.close()`!

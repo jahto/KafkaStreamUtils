@@ -31,85 +31,60 @@ import org.apache.kafka.streams.state.Stores;
  * @param <K>
  * @param <V>
  */
-public abstract class TransformerSupplierWithStore<K, V, VR>
-        implements TransformerSupplier<K, V, KeyValue<K, VR>> {
+// public abstract class TransformerSupplierWithStore<K, V1, KeyValue<K, VR1>>
+//public abstract class TransformerSupplierWithStore<K, V, VR>
+//        implements TransformerSupplier<K, V, KeyValue<K, VR>> {
 
-    protected final String stateStoreName;
-    protected final TransformerExtended<K, V, VR> transformer;
+public abstract class TransformerSupplierWithStore<K, V, KO, VO>
+        implements TransformerSupplier<K, V, KeyValue<KO, VO>> {
+    TransformerImpl transformer;
 
-    /**
-     *
-     * @param builder
-     * @param keyserde
-     * @param valserde
-     * @param stateStoreName
-     */
-    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
-        this.stateStoreName = stateStoreName;
-        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(
-                Stores.persistentKeyValueStore(stateStoreName),
+    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserdein, Serde<VO> valserdeout, String stateStoreName) {
+        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
                 keyserde,
-                valserde)
+                valserdein)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
         this.transformer = createTransformer();
     }
 
-    /**
-     *
-     * @return
-     */
-    public abstract TransformerImpl<K, V, VR> createTransformer();
-    // public abstract TransformerImpl createTransformer();
-    // public abstract TransformerExtended<K, V, VR> createTransformer();
+    public abstract TransformerImpl createTransformer();
 
-    /**
-     *
-     * @return
-     */
     @Override
-    public Transformer<K, V, KeyValue<K, VR>> get() {
+    public Transformer<K, V, KeyValue<KO, VO>> get() {
         return transformer;
     }
-    /**
-     *
-     * @param <K>
-     * @param <V>
-     */
-    protected abstract class TransformerImpl<K, V, VR> implements TransformerExtended<K, V, VR> {
 
-        /**
-         *
-         */
-        protected KeyValueStore<K, V> stateStore;
+    public static abstract class TransformerImpl<K1, V1, VR1> implements Transformer<K1, V1, VR1> {
 
-        /**
-         *
-         * @param pc
-         */
+        protected KeyValueStore<K1, V1> stateStore;
+        protected String stateStoreName;
+
+        public TransformerImpl(String name) {
+            this.stateStoreName = name;
+        }
+        
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
+            stateStore = (KeyValueStore<K1, V1>) pc.getStateStore(stateStoreName);
         }
 
-        /**
-         *
-         * @param k
-         * @param v
-         * @return
-         */
-        /*
+        // @Override
+        // public abstract VR1 transform(K1 k, V1 v);
+
+        // public abstract VR1 transform(K1 k, V1 v1, V1 v2);
+
         @Override
-        public abstract KeyValue<K, VR> transform(K k, V v);
-        */
-        /**
-         *
-         * @param k
-         * @param v1
-         * @param v2
-         * @return
-         */
-        public abstract KeyValue<K, VR> transform(K k, V v1, VR v2);
+        public VR1 punctuate(long l) {
+            // Not needed and also deprecated.
+            return null;
+        }
+
+        @Override
+        public void close() {
+            // Note: The store should NOT be closed manually here via `stateStore.close()`!
+            // The Kafka Streams API will automatically close stores when necessary.
+        }
     }
 }

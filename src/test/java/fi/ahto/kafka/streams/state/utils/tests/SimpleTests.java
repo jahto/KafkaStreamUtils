@@ -15,6 +15,9 @@
  */
 package fi.ahto.kafka.streams.state.utils.tests;
 
+import org.apache.kafka.streams.KeyValue;
+import org.apache.kafka.streams.kstream.KStreamBuilder;
+import org.apache.kafka.streams.kstream.TransformerSupplier;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,22 +26,77 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.kafka.test.rule.KafkaEmbedded;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
+
+import org.apache.kafka.streams.kstream.Transformer;
+import org.apache.kafka.streams.kstream.TransformerSupplier;
+import org.apache.kafka.streams.processor.ProcessorContext;
+
 /**
  *
  * @author Jouni Ahto
  */
 @RunWith(SpringRunner.class)
 @DirtiesContext
-@EmbeddedKafka(partitions = 1, topics = { "messages"})
+@EmbeddedKafka(partitions = 1, topics = {"messages"})
 
 public class SimpleTests {
+
     @Autowired
     private KafkaEmbedded embeddedKafka;
-    
+
     @Test
     public void placeHolder() {
         // Temporary placeholder while the tests are still to be written.
         // In the meanwhile, keeps those tools that insist on running tests
         // on every build happy and not error on missing tests (at least NetBeans).
+    }
+
+    public void testTransform() {
+        KStreamBuilder builder = new KStreamBuilder();
+        TransformerSupplier<Number, Number, KeyValue<Integer, Integer>> transformerSupplier = new TransformerSupplier<Number, Number, KeyValue<Integer, Integer>>() {
+
+            public Transformer<Number, Number, KeyValue<Integer, Integer>> get() {
+                return new Transformer<Number, Number, KeyValue<Integer, Integer>>() {
+
+                    private int total = 0;
+
+                    @Override
+                    public void init(ProcessorContext context) {
+                    }
+
+                    @Override
+                    public KeyValue<Integer, Integer> transform(Number key, Number value) {
+                        total += value.intValue();
+                        return KeyValue.pair(key.intValue() * 2, total);
+                    }
+
+                    @Override
+                    public KeyValue<Integer, Integer> punctuate(long timestamp) {
+                        return KeyValue.pair(-1, (int) timestamp);
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                };
+            }
+        };
+        /*
+        final int[] expectedKeys = {1, 10, 100, 1000};
+        MockProcessorSupplier<Integer, Integer> processor = new MockProcessorSupplier<>();
+        KStream<Integer, Integer> stream = builder.stream(intSerde, intSerde, topicName);
+        stream.transform(transformerSupplier).process(processor);
+        driver = new KStreamTestDriver(builder);
+        for (int expectedKey : expectedKeys) {
+            driver.process(topicName, expectedKey, expectedKey * 10);
+        }
+        driver.punctuate(2);
+        driver.punctuate(3);
+        assertEquals(6, processor.processed.size());
+        String[] expected = {"2:10", "20:110", "200:1110", "2000:11110", "-1:2", "-1:3"};
+        for (int i = 0; i < expected.length; i++) {
+            assertEquals(expected[i], processor.processed.get(i));
+        }
+        */
     }
 }
