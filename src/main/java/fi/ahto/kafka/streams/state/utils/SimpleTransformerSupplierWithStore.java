@@ -71,23 +71,4 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
             super.init(pc);
         }
     }
-
-    // Problems getting this one to compile. I'm not getting something right,
-    // at least the syntax of how to do it, if it even can be done. The idea
-    // is to provide a default implementation for the simplest and probably
-    // most common case where the key doesn't change, and output type of
-    // value is the same, it just got transformed in some way.
-    // Maybe Java 8 interfaces with default methods is the right solution.
-    /*
-    public abstract class SimpleTransformerImpl 
-            extends TransformerSupplierWithStore.TransformerImpl
-            implements Transformer<K, V, KeyValue<K, V>> {
-        public KeyValue<K, V> transformValue(K k, V v) {
-                    V oldVal = stateStore.get(k);
-                    KeyValue<K, V> newVal = transformValue(k, oldVal, v);
-                    stateStore.put(k, newVal.value);
-                    return newVal;
-        }
-    }
-     */
 }

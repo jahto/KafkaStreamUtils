@@ -70,10 +70,9 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
             stateStore = (KeyValueStore<K1, V1>) pc.getStateStore(stateStoreName);
         }
 
-        // @Override
-        // public abstract VR1 transform(K1 k, V1 v);
+        public abstract VR1 transform(K1 k, V1 v);
 
-        // public abstract VR1 transform(K1 k, V1 v1, V1 v2);
+        public abstract VR1 transform(K1 k, V1 v1, V1 v2);
 
         @Override
         public VR1 punctuate(long l) {

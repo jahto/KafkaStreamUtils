@@ -31,9 +31,6 @@ import org.apache.kafka.streams.state.Stores;
  * @param <K>
  * @param <V>
  */
-// public abstract class TransformerSupplierWithStore<K, V1, KeyValue<K, VR1>>
-//public abstract class TransformerSupplierWithStore<K, V, VR>
-//        implements TransformerSupplier<K, V, KeyValue<K, VR>> {
 
 public abstract class TransformerSupplierWithStore<K, V, KO, VO>
         implements TransformerSupplier<K, V, KeyValue<KO, VO>> {
