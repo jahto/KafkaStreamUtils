@@ -15,7 +15,6 @@
  */
 package fi.ahto.kafka.streams.state.utils.tests;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -43,7 +42,6 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
-import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,21 +73,16 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 /**
  *
  * @author Jouni Ahto
+ * 
+ * Inspired by and further modified from the work done by Elliot Kennedy
+ * in org.springframework.kafka.kstream.KafkaStreamsJsonSerializationTests.
  */
-/*
-Elliot Kennedy
-Artem Bilan
-Marius Bogoevici
-Gary Russell
-Elliot Metsger
-Zach Olauson
- */
+
 @RunWith(SpringRunner.class)
 @DirtiesContext
 @EmbeddedKafka(partitions = 1, topics = {
     SimpleTests.INPUT_TOPIC,
     SimpleTests.TRANSFORMED_TOPIC,})
-// @JsonTest
 
 public class SimpleTests {
 
@@ -116,9 +109,17 @@ public class SimpleTests {
 
     // NOTE: do NOT use these serdes, for some reason they always end up containing
     // an ObjectMapper that is not customized, although the autowired one above is.
-    // Convert them to beans, either here or in the configuration class?
-    private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
-    private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
+    // Maybe converting them to beans could help, either here or in the configuration class?
+    // private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
+    // private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
+    
+    // These ones compile, but the deserializer is still missing targettype. At least
+    // they are using the right ObjectMapper, the one configured in Configuration class.
+    // But let's test whether they work anyway.
+    @Autowired
+    private JsonSerde<InputData> inputSerde;
+    @Autowired
+    private JsonSerde<TransformedData> trandformedSerde;
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class InputData {
@@ -177,10 +178,7 @@ public class SimpleTests {
             this.Delay = Delay;
         }
 
-        public InputData() {
-        }
-
-        ;
+        public InputData() {};
         
         public InputData(String VehicleId,
                 Instant RecordTime,
@@ -197,7 +195,6 @@ public class SimpleTests {
         @JsonProperty("Delay")
         private Integer Delay;
     }
-
 
     static class TransformedData {
 
@@ -269,7 +266,8 @@ public class SimpleTests {
     @Test
     public void testTranformer() throws Exception {
         System.out.println("Running test");
-        final JsonSerde<InputData> serde = new JsonSerde<>(InputData.class, objectMapper);
+        // final JsonSerde<InputData> serde = new JsonSerde<>(InputData.class, objectMapper);
+        final JsonSerde<InputData> serde = inputSerde;
         Consumer<String, InputData> objectOutputTopicConsumer = consumer(TRANSFORMED_TOPIC, Serdes.String(), serde);
 
         // Put some data to the input stream.
@@ -321,6 +319,27 @@ public class SimpleTests {
             return new KafkaTemplate<>(producerFactory());
         }
 
+        // private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
+        // private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
+        /*
+        @Bean
+        public <K> JsonSerde<K> serdeFactory() {
+            System.out.println("JsonSerde constructed");
+            return new JsonSerde<>(objectMapper);
+        }
+        */
+        @Bean
+        public JsonSerde<InputData> serdeFactoryInputData() {
+            System.out.println("JsonSerde<InputData constructed");
+            return new JsonSerde<>(objectMapper);
+        }
+        
+        @Bean
+        public JsonSerde<TransformedData> serdeFactoryTransformedData() {
+            System.out.println("JsonSerde<TransformedData> constructed");
+            return new JsonSerde<>(objectMapper);
+        }
+        
         @Autowired
         public ObjectMapper objectMapper;
 
