@@ -29,7 +29,7 @@ import org.apache.kafka.streams.state.KeyValueStore;
  * @param <V>
  */
 public abstract class SimpleTransformerSupplierWithStore<K, V>
-        extends TransformerSupplierWithStore<K, V, K, V> {
+        extends TransformerSupplierWithStore<K, V, KeyValue<K, V>> {
 
     /**
      *
@@ -39,36 +39,20 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
      * @param stateStoreName
      */
     public SimpleTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
-        super(builder, keyserde, valserde, valserde, stateStoreName);
+        super(builder, keyserde, valserde, stateStoreName);
     }
-
-    // public static abstract class TransformerImpl<K1, V1, VR1>
-    // public static abstract class TransformerImpl
-    public abstract static class TransformerImpl<K1, V1, VR1>
-            // extends TransformerSupplierWithStore.TransformerImpl
-            extends TransformerSupplierWithStore.TransformerImpl<K1, V1, VR1>
-            // implements Transformer<K1, V1, KeyValue<K1, V1>>
-            // implements Transformer<K1, V1, VR1>
-                    {
-
-        public TransformerImpl(String name) {
-            super(name);
-        }
+    
+    abstract class TransformerImpl<K, V, VR extends KeyValue<K, V>>
+            extends TransformerSupplierWithStore<K, V, VR>.TransformerImpl
+            implements TransformerWithStore<K, V, VR>
+    {
 
         @Override
-        public VR1 transform(K1 k, V1 v) {
-            V1 oldVal = stateStore.get(k);
-            V1 newVal = transformValue(oldVal, v);
-            stateStore.put(k, newVal);
-            return (VR1) KeyValue.pair(k, newVal);
-            // TODO: get rid of the cast.
+        public VR transform(K k, V v1, V v2) {
+            V newVal = transformValue(v1, v2);
+            return (VR) VR.pair(k, newVal);
         }
 
-        public abstract V1 transformValue(V1 oldVal, V1 v);
-
-        @Override
-        public void init(ProcessorContext pc) {
-            super.init(pc);
-        }
+        abstract V transformValue(V v1, V v2);
     }
 }

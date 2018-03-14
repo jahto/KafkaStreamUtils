@@ -22,19 +22,6 @@ import org.apache.kafka.streams.kstream.Transformer;
  *
  * @author jah
  */
-public interface SimpleTransformerExtended<K, V>  extends Transformer<K, V, KeyValue<K, V>>{
-    @Override
-    @SuppressWarnings("deprecation")
-    default KeyValue<K, V>
-        punctuate(long l) {
-        // Not needed and also deprecated. Consider adding support
-        // for Punctuator functional interface in the future.
-        return null;
-    }
-
-    @Override
-    default void close() {
-        // Note: The store should NOT be closed manually here via `stateStore.close()`!
-        // The Kafka Streams API will automatically close stores when necessary.
-    }
+public interface TransformerWithStore<K, V, VR extends KeyValue<?, ?>> extends Transformer<K, V, VR> {
+        public VR transform(K k, V v1, V v2);
 }

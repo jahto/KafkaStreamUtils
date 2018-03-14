@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import fi.ahto.kafka.streams.state.utils.TransformerSupplierWithStore;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -73,18 +74,17 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 /**
  *
  * @author Jouni Ahto
- * 
- * Inspired by and further modified from the work done by Elliot Kennedy
- * in org.springframework.kafka.kstream.KafkaStreamsJsonSerializationTests.
+ *
+ * Inspired by and further modified from the work done by Elliot Kennedy in
+ * org.springframework.kafka.kstream.KafkaStreamsJsonSerializationTests.
  */
-
 @RunWith(SpringRunner.class)
 @DirtiesContext
 @EmbeddedKafka(partitions = 1, topics = {
-    SimpleTests.INPUT_TOPIC,
-    SimpleTests.TRANSFORMED_TOPIC,})
+    TransformerTests.INPUT_TOPIC,
+    TransformerTests.TRANSFORMED_TOPIC,})
 
-public class SimpleTests {
+public class TransformerTests {
 
     public static final String INPUT_TOPIC = "input-topic";
     public static final String TRANSFORMED_TOPIC = "transformed-topic";
@@ -94,9 +94,6 @@ public class SimpleTests {
 
     @Autowired
     private KafkaTemplate<String, InputData> inputKafkaTemplate;
-
-    @Autowired
-    private KafkaTemplate<String, TransformedData> resultKafkaTemplate;
 
     @Autowired
     private StreamsBuilderFactoryBean streamsBuilderFactoryBean;
@@ -112,14 +109,15 @@ public class SimpleTests {
     // Maybe converting them to beans could help, either here or in the configuration class?
     // private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
     // private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
-    
     // These ones compile, but the deserializer is still missing targettype. At least
     // they are using the right ObjectMapper, the one configured in Configuration class.
-    // But let's test whether they work anyway.
+    // But let's test whether they work anyway. Ok, occasionally, but in some cases throw
+    // during deserialization, because now the are not in trusted packages... Solved
+    // by adding the type in JsonSerde constructor in beans.
     @Autowired
     private JsonSerde<InputData> inputSerde;
     @Autowired
-    private JsonSerde<TransformedData> trandformedSerde;
+    private JsonSerde<TransformedData> transformedSerde;
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class InputData {
@@ -228,6 +226,8 @@ public class SimpleTests {
             return true;
         }
 
+        public TransformedData() {};
+        
         public TransformedData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
             this.VehicleId = VehicleId;
             this.RecordTime = RecordTime;
@@ -257,18 +257,9 @@ public class SimpleTests {
     }
 
     @Test
-    public void placeHolder() {
-        // Temporary placeholder while the tests are still to be written.
-        // In the meanwhile, keeps those tools that insist on running tests
-        // on every build happy and not error on missing tests (at least NetBeans).
-    }
-
-    @Test
     public void testTranformer() throws Exception {
         System.out.println("Running test");
-        // final JsonSerde<InputData> serde = new JsonSerde<>(InputData.class, objectMapper);
-        final JsonSerde<InputData> serde = inputSerde;
-        Consumer<String, InputData> objectOutputTopicConsumer = consumer(TRANSFORMED_TOPIC, Serdes.String(), serde);
+        Consumer<String, TransformedData> objectOutputTopicConsumer = consumer(TRANSFORMED_TOPIC, Serdes.String(), transformedSerde);
 
         // Put some data to the input stream.
         Input.forEach((payload) -> {
@@ -277,19 +268,16 @@ public class SimpleTests {
         inputKafkaTemplate.flush();
 
         // Consume records from the output of the stream.
-        List<InputData> Results = new ArrayList<>();
-        ConsumerRecords<String, InputData> outputTopicRecords = KafkaTestUtils.getRecords(objectOutputTopicConsumer);
-        for (ConsumerRecord<String, InputData> output : outputTopicRecords) {
+        List<TransformedData> Results = new ArrayList<>();
+        ConsumerRecords<String, TransformedData> outputTopicRecords = KafkaTestUtils.getRecords(objectOutputTopicConsumer);
+        for (ConsumerRecord<String, TransformedData> output : outputTopicRecords) {
             System.out.println("Received vehicle " + output.value().VehicleId);
             Results.add(output.value());
         }
 
-        List<InputData> FakeResults = new ArrayList<>();
-        FakeResults.add(new InputData("123456", Instant.ofEpochSecond(1519557830), 40));
-        FakeResults.add(new InputData("123456", Instant.ofEpochSecond(1519557880), 20));
-        FakeResults.add(new InputData("123456", Instant.ofEpochSecond(1519557810), 10));
+        int i = 0;
         assertThat(Results,
-                containsInAnyOrder(FakeResults.toArray()));
+                containsInAnyOrder(Expected));
     }
 
     // Taken from ???
@@ -319,33 +307,37 @@ public class SimpleTests {
             return new KafkaTemplate<>(producerFactory());
         }
 
-        // private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
-        // private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
-        /*
-        @Bean
-        public <K> JsonSerde<K> serdeFactory() {
-            System.out.println("JsonSerde constructed");
-            return new JsonSerde<>(objectMapper);
-        }
-        */
+        @Autowired
+        public JsonSerde<InputData> inputSerde;
+        @Autowired
+        public JsonSerde<TransformedData> trandformedSerde;
+
         @Bean
         public JsonSerde<InputData> serdeFactoryInputData() {
-            System.out.println("JsonSerde<InputData constructed");
-            return new JsonSerde<>(objectMapper);
+            System.out.println("JsonSerde<InputData> constructed");
+            return new JsonSerde<>(InputData.class, customizedObjectMapper());
         }
-        
+
         @Bean
         public JsonSerde<TransformedData> serdeFactoryTransformedData() {
             System.out.println("JsonSerde<TransformedData> constructed");
-            return new JsonSerde<>(objectMapper);
+            return new JsonSerde<>(TransformedData.class, customizedObjectMapper());
         }
-        
-        @Autowired
-        public ObjectMapper objectMapper;
+
+        @Bean
+        public ObjectMapper customizedObjectMapper() {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS);
+            mapper.disable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
+            mapper.enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            System.out.println("customizedObjectMapper constructed");
+            return mapper;
+        }
 
         @Bean
         public ProducerFactory<?, ?> producerFactory() {
-            final JsonSerde<InputData> valueserde = new JsonSerde<>(objectMapper);
+            final JsonSerde<InputData> valueserde = new JsonSerde<>(customizedObjectMapper());
             DefaultKafkaProducerFactory<String, InputData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
             factory.setValueSerializer(valueserde.serializer());
             System.out.println("ProducerFactory constructed");
@@ -387,31 +379,51 @@ public class SimpleTests {
 
         @Bean
         public KStream<String, InputData> kStream(StreamsBuilder builder) {
-            final JsonSerde<InputData> serde = new JsonSerde<>(InputData.class, objectMapper);
-            final KStream<String, InputData> stream = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), serde));
+            final TestTransformer transformer = new TestTransformer(builder, Serdes.String(), inputSerde, "test-store");
+            final KStream<String, InputData> stream = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
             stream.map((key, value) -> {
                 System.out.println("Received key " + key);
                 return KeyValue.pair(key, value);
             });
 
             System.out.println("KStream constructed");
-            stream.to(TRANSFORMED_TOPIC, Produced.with(Serdes.String(), serde));
+            stream.transform(transformer, "test-store");
+            stream.to(TRANSFORMED_TOPIC, Produced.with(Serdes.String(), inputSerde));
             return stream;
-        }
-
-        @Bean
-        public ObjectMapper objectMapper() {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS);
-            mapper.disable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
-            mapper.enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            System.out.println("ObjectMapper constructed");
-            return mapper;
         }
     }
     
-    public static class Transformer {
+    static class TestTransformer extends TransformerSupplierWithStore<String, InputData, KeyValue<String, TransformedData>> {
+
+        public TestTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<InputData> valserde, String stateStoreName) {
+            super(builder, keyserde, valserde, stateStoreName);
+        }
+
+        @Override
+        public TransformerImpl createTransformer() {
+            return new TransformerImpl() {
+                @Override
+                public KeyValue<String, TransformedData> transform(String k, InputData v1, InputData v2) {
+                    return transformer(k, v1, v2);
+                }
+            };
+        }
         
+        public KeyValue<String, TransformedData> transformer(String k, InputData v1, InputData v2) {
+            TransformedData rval = new TransformedData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
+            // There wasn't any previous value.
+            if (v1 == null) {
+                return KeyValue.pair(k, rval);
+            }
+
+            if (v1.RecordTime != null && v2.RecordTime != null) {
+                rval.MeasurementLength = (int) v2.RecordTime.getEpochSecond() - (int) v1.RecordTime.getEpochSecond();
+            }
+
+            if (v1.Delay != null && v2.Delay != null) {
+                rval.DelayChange = v2.Delay - v1.Delay;
+            }
+            return KeyValue.pair(k, rval);
+        }
     }
 }

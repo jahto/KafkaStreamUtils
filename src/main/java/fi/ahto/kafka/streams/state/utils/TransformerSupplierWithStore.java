@@ -30,56 +30,61 @@ import org.apache.kafka.streams.state.Stores;
  * @author Jouni Ahto
  * @param <K>
  * @param <V>
+ * @param <VR>
  */
 
-public abstract class TransformerSupplierWithStore<K, V, KO, VO>
-        implements TransformerSupplier<K, V, KeyValue<KO, VO>> {
-    TransformerImpl transformer;
+public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, ?>>
+        implements TransformerSupplier<K, V, VR> {
+    
+    final private TransformerImpl transformer;
+    final private String stateStoreName;
 
-    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserdein, Serde<VO> valserdeout, String stateStoreName) {
+    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
         StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
                 keyserde,
-                valserdein)
+                valserde)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
+        this.stateStoreName = stateStoreName;
         this.transformer = createTransformer();
     }
 
     public abstract TransformerImpl createTransformer();
 
     @Override
-    public Transformer<K, V, KeyValue<KO, VO>> get() {
+    public Transformer<K, V, VR> get() {
         return transformer;
     }
 
-    public static abstract class TransformerImpl<K1, V1, VR1> implements Transformer<K1, V1, VR1> {
+    public abstract class TransformerImpl implements TransformerWithStore<K, V, VR> {
 
-        protected KeyValueStore<K1, V1> stateStore;
-        protected String stateStoreName;
+        protected KeyValueStore<K, V> stateStore;
 
-        public TransformerImpl(String name) {
-            this.stateStoreName = name;
-        }
-        
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K1, V1>) pc.getStateStore(stateStoreName);
+            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
         }
 
-        // @Override
-        // public abstract VR1 transform(K1 k, V1 v);
-
-        // public abstract VR1 transform(K1 k, V1 v1, V1 v2);
+        @Override
+        public VR transform(K k, V v) {
+            V oldVal = stateStore.get(k);
+            VR newVal = transform(k, oldVal, v);
+            stateStore.put(k, v);
+            return newVal;
+        }
 
         @Override
-        public VR1 punctuate(long l) {
+        public abstract VR transform(K k, V v1, V v2);
+
+        @Override
+        public VR punctuate(long l) {
             // Not needed and also deprecated.
             return null;
         }
 
         @Override
-        public void close() {
+        public final void close() {
             // Note: The store should NOT be closed manually here via `stateStore.close()`!
             // The Kafka Streams API will automatically close stores when necessary.
         }

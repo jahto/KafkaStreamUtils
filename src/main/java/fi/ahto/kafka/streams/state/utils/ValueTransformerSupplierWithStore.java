@@ -37,15 +37,17 @@ import org.apache.kafka.streams.state.Stores;
 public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         implements ValueTransformerSupplier<V, VR> {
     
-    TransformerImpl transformer;
+    final private TransformerImpl transformer;
+    final private String stateStoreName;
 
-    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserdein, Serde<VR> valserdeout, String stateStoreName) {
+    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
         StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
                 keyserde,
-                valserdein)
+                valserde)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
+        this.stateStoreName = stateStoreName;
         this.transformer = createTransformer();
     }
 
@@ -56,32 +58,29 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         return transformer;
     }
 
-    public static abstract class TransformerImpl<K1, V1, VR1> implements ValueTransformer<V1, VR1> {
+    public abstract class TransformerImpl implements ValueTransformerWithStore<K, V, VR> {
 
-        protected KeyValueStore<K1, V1> stateStore;
-        protected String stateStoreName;
-
-        public TransformerImpl(String name) {
-            this.stateStoreName = name;
-        }
+        protected KeyValueStore<K, V> stateStore;
         
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K1, V1>) pc.getStateStore(stateStoreName);
+            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
         }
 
-        public abstract VR1 transform(K1 k, V1 v);
-
-        public abstract VR1 transform(K1 k, V1 v1, V1 v2);
+        @Override
+        public abstract VR transform(V v);
 
         @Override
-        public VR1 punctuate(long l) {
+        public abstract VR transform(V v1, V v2);
+
+        @Override
+        public VR punctuate(long l) {
             // Not needed and also deprecated.
             return null;
         }
 
         @Override
-        public void close() {
+        public final void close() {
             // Note: The store should NOT be closed manually here via `stateStore.close()`!
             // The Kafka Streams API will automatically close stores when necessary.
         }

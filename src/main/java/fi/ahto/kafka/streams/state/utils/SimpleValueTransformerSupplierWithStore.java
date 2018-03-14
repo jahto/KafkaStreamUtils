@@ -16,6 +16,7 @@
 package fi.ahto.kafka.streams.state.utils;
 
 import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 
 /**
@@ -25,9 +26,8 @@ import org.apache.kafka.streams.StreamsBuilder;
  * @param <V>
  */
 public abstract class SimpleValueTransformerSupplierWithStore<K, V>
-        extends ValueTransformerSupplierWithStore<K, V, V>
-{
-    
+        extends ValueTransformerSupplierWithStore<K, V, V> {
+
     /**
      *
      * @param builder
@@ -36,7 +36,14 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
      * @param stateStoreName
      */
     public SimpleValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> serdekey, Serde<V> serdeval, String stateStoreName) {
-        super(builder, serdekey, serdeval, serdeval, stateStoreName);
+        super(builder, serdekey, serdeval, stateStoreName);
     }
-    
+
+    public abstract class TransformerImpl
+            // extends TransformerSupplierWithStore<K, V, KeyValue<K, V>>.TransformerImpl
+            // extends super<K, V, KeyValue<K, V>>.TransformerImpl
+            // implements TransformerWithStore<K, V, V>
+            {
+        
+    }
 }
