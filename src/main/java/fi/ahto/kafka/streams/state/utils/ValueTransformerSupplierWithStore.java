@@ -38,7 +38,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         implements ValueTransformerSupplier<V, VR> {
     
     final private TransformerImpl transformer;
-    final private String stateStoreName;
+    final protected String stateStoreName;
 
     public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
         StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),

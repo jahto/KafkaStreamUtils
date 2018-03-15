@@ -42,17 +42,21 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
         super(builder, keyserde, valserde, stateStoreName);
     }
     
-    abstract class TransformerImpl<K, V, VR extends KeyValue<K, V>>
-            extends TransformerSupplierWithStore<K, V, VR>.TransformerImpl
-            implements TransformerWithStore<K, V, VR>
+   public abstract class TransformerImpl
+            extends TransformerSupplierWithStore<K, V, KeyValue<K, V>>.TransformerImpl
+            implements TransformerWithStore<K, V, KeyValue<K, V>>
+
+    //public abstract class TransformerImpl<K, V, VR extends KeyValue<K, V>>
+    //        extends TransformerSupplierWithStore<K, V, VR>.TransformerImpl
+    //        implements TransformerWithStore<K, V, VR>
     {
 
         @Override
-        public VR transform(K k, V v1, V v2) {
+        public KeyValue<K, V> transform(K k, V v1, V v2) {
             V newVal = transformValue(v1, v2);
-            return (VR) VR.pair(k, newVal);
+            return KeyValue.pair(k, newVal);
         }
 
-        abstract V transformValue(V v1, V v2);
+        public abstract V transformValue(V v1, V v2);
     }
 }

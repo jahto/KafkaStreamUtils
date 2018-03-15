@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import fi.ahto.kafka.streams.state.utils.SimpleValueTransformerSupplierWithStore;
 import fi.ahto.kafka.streams.state.utils.TransformerSupplierWithStore;
 import fi.ahto.kafka.streams.state.utils.ValueTransformerSupplierWithStore;
 import java.time.Instant;
@@ -44,6 +45,9 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,9 +99,6 @@ public class SimpleValueTransformerTests {
     private KafkaEmbedded embeddedKafka;
 
     @Autowired
-    private KafkaTemplate<String, InputData> inputKafkaTemplate;
-
-    @Autowired
     private KafkaTemplate<String, TransformedData> transformedKafkaTemplate;
 
     @Autowired
@@ -107,7 +108,7 @@ public class SimpleValueTransformerTests {
     private ObjectMapper objectMapper;
 
     @Autowired
-    KStream<String, InputData> kStream;
+    KStream<String, TransformedData> kStream;
 
     // NOTE: do NOT use these serdes, for some reason they always end up containing
     // an ObjectMapper that is not customized, although the autowired one above is.
@@ -120,84 +121,7 @@ public class SimpleValueTransformerTests {
     // during deserialization, because now the are not in trusted packages... Solved
     // by adding the type in JsonSerde constructor in beans.
     @Autowired
-    private JsonSerde<InputData> inputSerde;
-    @Autowired
     private JsonSerde<TransformedData> transformedSerde;
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class InputData {
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) {
-                return true;
-            }
-            if (obj == null) {
-                return false;
-            }
-            if (getClass() != obj.getClass()) {
-                return false;
-            }
-            final InputData other = (InputData) obj;
-            if (!Objects.equals(this.VehicleId, other.VehicleId)) {
-                return false;
-            }
-            if (!Objects.equals(this.RecordTime, other.RecordTime)) {
-                return false;
-            }
-            if (!Objects.equals(this.Delay, other.Delay)) {
-                return false;
-            }
-            return true;
-        }
-
-        @JsonProperty("VehicleId")
-        public String getVehicleId() {
-            return VehicleId;
-        }
-
-        @JsonProperty("VehicleId")
-        public void setVehicleId(String VehicleId) {
-            this.VehicleId = VehicleId;
-        }
-
-        @JsonProperty("RecordTime")
-        public Instant getRecordTime() {
-            return RecordTime;
-        }
-
-        @JsonProperty("RecordTime")
-        public void setRecordTime(Instant RecordTime) {
-            this.RecordTime = RecordTime;
-        }
-
-        @JsonProperty("Delay")
-        public Integer getDelay() {
-            return Delay;
-        }
-
-        @JsonProperty("Delay")
-        public void setDelay(Integer Delay) {
-            this.Delay = Delay;
-        }
-
-        public InputData() {};
-        
-        public InputData(String VehicleId,
-                Instant RecordTime,
-                Integer Delay) {
-            this.VehicleId = VehicleId;
-            this.RecordTime = RecordTime;
-            this.Delay = Delay;
-        }
-
-        @JsonProperty("VehicleId")
-        private String VehicleId;
-        @JsonProperty("RecordTime")
-        private Instant RecordTime;
-        @JsonProperty("Delay")
-        private Integer Delay;
-    }
 
     static class TransformedData {
 
@@ -247,14 +171,14 @@ public class SimpleValueTransformerTests {
         public Integer MeasurementLength;
     }
 
-    private List<InputData> Input = new ArrayList<>();
+    private List<TransformedData> Input = new ArrayList<>();
     private List<TransformedData> Expected = new ArrayList<>();
 
     @Before
     public void prepareData() {
-        Input.add(new InputData("123456", Instant.ofEpochSecond(1519557810), 10));
-        Input.add(new InputData("123456", Instant.ofEpochSecond(1519557830), 40));
-        Input.add(new InputData("123456", Instant.ofEpochSecond(1519557880), 20));
+        Input.add(new TransformedData("123456", Instant.ofEpochSecond(1519557810), 10, null, null));
+        Input.add(new TransformedData("123456", Instant.ofEpochSecond(1519557830), 40, null, null));
+        Input.add(new TransformedData("123456", Instant.ofEpochSecond(1519557880), 20, null, null));
 
         Expected.add(new TransformedData("123456", Instant.ofEpochSecond(1519557810), 10, null, null));
         Expected.add(new TransformedData("123456", Instant.ofEpochSecond(1519557830), 40, 30, 20));
@@ -268,9 +192,9 @@ public class SimpleValueTransformerTests {
 
         // Put some data to the input streamin.
         Input.forEach((payload) -> {
-            inputKafkaTemplate.send(INPUT_TOPIC, "21V", payload);
+            transformedKafkaTemplate.send(INPUT_TOPIC, "21V", payload);
         });
-        inputKafkaTemplate.flush();
+        transformedKafkaTemplate.flush();
 
         // Consume records from the output of the streamin.
         List<TransformedData> Results = new ArrayList<>();
@@ -281,8 +205,8 @@ public class SimpleValueTransformerTests {
         }
 
         int i = 0;
-        // assertThat(Results,
-        //        containsInAnyOrder(Expected));
+        assertThat(Results,
+                containsInAnyOrder(Expected.toArray()));
     }
 
     // Taken from ???
@@ -313,15 +237,7 @@ public class SimpleValueTransformerTests {
         }
 
         @Autowired
-        public JsonSerde<InputData> inputSerde;
-        @Autowired
         public JsonSerde<TransformedData> trandformedSerde;
-
-        @Bean
-        public JsonSerde<InputData> serdeFactoryInputData() {
-            System.out.println("JsonSerde<InputData> constructed");
-            return new JsonSerde<>(InputData.class, customizedObjectMapper());
-        }
 
         @Bean
         public JsonSerde<TransformedData> serdeFactoryTransformedData() {
@@ -342,8 +258,8 @@ public class SimpleValueTransformerTests {
 
         @Bean
         public ProducerFactory<?, ?> producerFactory() {
-            final JsonSerde<InputData> valueserde = new JsonSerde<>(customizedObjectMapper());
-            DefaultKafkaProducerFactory<String, InputData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
+            final JsonSerde<TransformedData> valueserde = new JsonSerde<>(customizedObjectMapper());
+            DefaultKafkaProducerFactory<String, TransformedData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
             factory.setValueSerializer(valueserde.serializer());
             System.out.println("ProducerFactory constructed");
             return factory;
@@ -368,7 +284,7 @@ public class SimpleValueTransformerTests {
         }
 
         @Bean
-        public ConsumerFactory<String, InputData> consumerFactory() {
+        public ConsumerFactory<String, TransformedData> consumerFactory() {
             System.out.println("ConsumerFactory constructed");
             return new DefaultKafkaConsumerFactory<>(consumerConfigs());
         }
@@ -383,10 +299,9 @@ public class SimpleValueTransformerTests {
         }
 
         @Bean
-        public KStream<String, InputData> kStream(StreamsBuilder builder) {
-            final TestValueTransformer transformer = new TestValueTransformer(builder, Serdes.String(), inputSerde, "test-store");
-            // transformer.cleanStore();
-            final KStream<String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
+        public KStream<String, TransformedData> kStream(StreamsBuilder builder) {
+            final TestValueTransformer transformer = new TestValueTransformer(builder, Serdes.String(), trandformedSerde, "test-store");
+            final KStream<String, TransformedData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), trandformedSerde));
             streamin.map((key, value) -> {
                 System.out.println("Received key " + key);
                 return KeyValue.pair(key, value);
@@ -399,31 +314,42 @@ public class SimpleValueTransformerTests {
         }
     }
     
-    static class TestValueTransformer extends ValueTransformerSupplierWithStore<String, InputData, TransformedData> {
+    static class TestValueTransformer extends SimpleValueTransformerSupplierWithStore<String, TransformedData> {
 
-        public TestValueTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<InputData> valserde, String stateStoreName) {
+        public TestValueTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<TransformedData> valserde, String stateStoreName) {
             super(builder, keyserde, valserde, stateStoreName);
         }
 
+        
         @Override
         public TransformerImpl createTransformer() {
             return new TransformerImpl() {
                 @Override
-                public TransformedData transform(InputData v) {
-                    InputData val = stateStore.get(v.getVehicleId());
+                public TransformedData transform(TransformedData v) {
+                    TransformedData val = stateStore.get(v.VehicleId);
                     TransformedData newVal = transform(val, v);
-                    stateStore.put(v.getVehicleId(), v);
+                    stateStore.put(v.VehicleId, v);
                     return newVal;
                 }
 
                 @Override
-                public TransformedData transform(InputData v1, InputData v2) {
+                public TransformedData transform(TransformedData v1, TransformedData v2) {
                     return transformer(v1, v2);
+                }
+                // Overriding to get a clean state, otherwise the tests fail.
+                @Override
+                public void init(ProcessorContext pc) {
+                    stateStore = (KeyValueStore<String, TransformedData>) pc.getStateStore(stateStoreName);
+                    KeyValueIterator<String, TransformedData> iter = stateStore.all();
+                    while (iter.hasNext()) {
+                        KeyValue<String, TransformedData> next = iter.next();
+                        stateStore.delete(next.key);
+                    }
                 }
             };
         }
-        
-        public TransformedData transformer(InputData v1, InputData v2) {
+
+        public TransformedData transformer(TransformedData v1, TransformedData v2) {
             TransformedData rval = new TransformedData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
             // There wasn't any previous value.
             if (v1 == null) {
@@ -439,5 +365,6 @@ public class SimpleValueTransformerTests {
             }
             return rval;
         }
+
     }
 }

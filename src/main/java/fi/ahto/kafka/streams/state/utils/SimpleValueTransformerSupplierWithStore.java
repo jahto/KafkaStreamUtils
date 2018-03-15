@@ -40,10 +40,14 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
     }
 
     public abstract class TransformerImpl
-            // extends TransformerSupplierWithStore<K, V, KeyValue<K, V>>.TransformerImpl
-            // extends super<K, V, KeyValue<K, V>>.TransformerImpl
-            // implements TransformerWithStore<K, V, V>
-            {
-        
+            extends ValueTransformerSupplierWithStore<K, V, V>.TransformerImpl
+            implements ValueTransformerWithStore<K, V, V> {
+
+        @Override
+        public abstract V transform(V v);
+
+        @Override
+        public abstract V transform(V v1, V v2);
+
     }
 }

@@ -43,6 +43,9 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.processor.ProcessorContext;
+import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.KeyValueStore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -176,7 +179,10 @@ public class TransformerTests {
             this.Delay = Delay;
         }
 
-        public InputData() {};
+        public InputData() {
+        }
+
+        ;
         
         public InputData(String VehicleId,
                 Instant RecordTime,
@@ -226,7 +232,10 @@ public class TransformerTests {
             return true;
         }
 
-        public TransformedData() {};
+        public TransformedData() {
+        }
+
+        ;
         
         public TransformedData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
             this.VehicleId = VehicleId;
@@ -277,7 +286,7 @@ public class TransformerTests {
 
         int i = 0;
         assertThat(Results,
-                containsInAnyOrder(Expected));
+                containsInAnyOrder(Expected.toArray()));
     }
 
     // Taken from ???
@@ -380,7 +389,6 @@ public class TransformerTests {
         @Bean
         public KStream<String, InputData> kStream(StreamsBuilder builder) {
             final TestTransformer transformer = new TestTransformer(builder, Serdes.String(), inputSerde, "test-store");
-            transformer.cleanStore();
             final KStream<String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
             streamin.map((key, value) -> {
                 System.out.println("Received key " + key);
@@ -393,7 +401,7 @@ public class TransformerTests {
             return streamin;
         }
     }
-    
+
     static class TestTransformer extends TransformerSupplierWithStore<String, InputData, KeyValue<String, TransformedData>> {
 
         public TestTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<InputData> valserde, String stateStoreName) {
@@ -407,9 +415,20 @@ public class TransformerTests {
                 public KeyValue<String, TransformedData> transform(String k, InputData v1, InputData v2) {
                     return transformer(k, v1, v2);
                 }
+
+                // Overriding to get a clean state, otherwise the tests fail.
+                @Override
+                public void init(ProcessorContext pc) {
+                    stateStore = (KeyValueStore<String, InputData>) pc.getStateStore(stateStoreName);
+                    KeyValueIterator<String, InputData> iter = stateStore.all();
+                    while (iter.hasNext()) {
+                        KeyValue<String, InputData> next = iter.next();
+                        stateStore.delete(next.key);
+                    }
+                }
             };
         }
-        
+
         public KeyValue<String, TransformedData> transformer(String k, InputData v1, InputData v2) {
             TransformedData rval = new TransformedData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
             // There wasn't any previous value.

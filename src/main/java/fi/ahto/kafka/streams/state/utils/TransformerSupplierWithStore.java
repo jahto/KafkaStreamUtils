@@ -38,8 +38,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
         implements TransformerSupplier<K, V, VR> {
     
     final private TransformerImpl transformer;
-    final private String stateStoreName;
-    final private StoreBuilder<KeyValueStore<K, V>> stateStoreBuilder;
+    final protected String stateStoreName;
 
     public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
         StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
@@ -48,17 +47,12 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
                 .withCachingEnabled();
 
         builder.addStateStore(store);
-        this.stateStoreBuilder = store;
         this.stateStoreName = stateStoreName;
         this.transformer = createTransformer();
     }
 
     public abstract TransformerImpl createTransformer();
 
-    public void cleanStore() {
-        transformer.cleanStore();
-    }
-    
     @Override
     public Transformer<K, V, VR> get() {
         return transformer;
@@ -68,17 +62,6 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
 
         protected KeyValueStore<K, V> stateStore;
 
-        public void cleanStore() {
-            // Doesn't work, stateStore is still null, init is called later.
-            // Think another approach, otherwise testing breaks.
-            KeyValueIterator<K, V> iter = stateStore.all();
-            while (iter.hasNext()) {
-                KeyValue<K, V> next = iter.next();
-                stateStore.delete(next.key);
-            }
-                
-        }
-        
         @Override
         public void init(ProcessorContext pc) {
             stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
