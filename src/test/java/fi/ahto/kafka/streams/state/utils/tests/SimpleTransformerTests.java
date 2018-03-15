@@ -81,10 +81,11 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 @RunWith(SpringRunner.class)
 @DirtiesContext
 @EmbeddedKafka(partitions = 1, topics = {
-    TransformerTests.INPUT_TOPIC,
-    TransformerTests.TRANSFORMED_TOPIC,})
+    SimpleTransformerTests.INPUT_TOPIC,
+    SimpleTransformerTests.TRANSFORMED_TOPIC,})
 
-public class TransformerTests {
+// Not yet modified to use SimpleTransformerWithStore...
+public class SimpleTransformerTests {
 
     public static final String INPUT_TOPIC = "input-topic";
     public static final String TRANSFORMED_TOPIC = "transformed-topic";
