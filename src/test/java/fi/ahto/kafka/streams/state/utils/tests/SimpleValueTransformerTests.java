@@ -135,10 +135,7 @@ public class SimpleValueTransformerTests {
             return true;
         }
 
-        public CommonData() {
-        }
-
-        ;
+        public CommonData() {};
         
         public CommonData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
             this.VehicleId = VehicleId;

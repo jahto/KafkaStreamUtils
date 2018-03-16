@@ -128,10 +128,7 @@ public class ValueTransformerTests {
             return true;
         }
 
-        public InputData() {
-        }
-
-        ;
+        public InputData() {};
         
         public InputData(String VehicleId, Instant RecordTime, Integer Delay) {
             this.VehicleId = VehicleId;
@@ -176,10 +173,7 @@ public class ValueTransformerTests {
             return true;
         }
 
-        public TransformedData() {
-        }
-
-        ;
+        public TransformedData() {};
         
         public TransformedData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
             this.VehicleId = VehicleId;
