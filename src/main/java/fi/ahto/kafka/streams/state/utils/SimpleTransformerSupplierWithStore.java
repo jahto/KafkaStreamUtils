@@ -18,45 +18,53 @@ package fi.ahto.kafka.streams.state.utils;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.kstream.Transformer;
-import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.state.KeyValueStore;
 
 /**
  *
  * @author Jouni Ahto
- * @param <K>
- * @param <V>
+ * @param <K>   both incoming and returned key type, also for saving into state store
+ * @param <V>   both incoming and returned value type, also for saving into state store
  */
 public abstract class SimpleTransformerSupplierWithStore<K, V>
         extends TransformerSupplierWithStore<K, V, KeyValue<K, V>> {
 
     /**
      *
-     * @param builder
-     * @param keyserde
-     * @param valserde
-     * @param stateStoreName
+     * @param builder   StreamsBuilder to use for adding the statestore 
+     * @param keyserde  Serde for persisting the key in the statestore
+     * @param valserde  Serde for persisting the value in the statestore
+     * @param storeName    statestore's name
      */
-    public SimpleTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
-        super(builder, keyserde, valserde, stateStoreName);
+    public SimpleTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+        super(builder, keyserde, valserde, storeName);
     }
-    
-   public abstract class TransformerImpl
+
+    /**
+     *
+     */
+    public abstract class TransformerImpl
             extends TransformerSupplierWithStore<K, V, KeyValue<K, V>>.TransformerImpl
-            implements TransformerWithStore<K, V, KeyValue<K, V>>
+            implements TransformerWithStore<K, V, KeyValue<K, V>> {
 
-    //public abstract class TransformerImpl<K, V, VR extends KeyValue<K, V>>
-    //        extends TransformerSupplierWithStore<K, V, VR>.TransformerImpl
-    //        implements TransformerWithStore<K, V, VR>
-    {
-
+        /**
+         *
+         * @param k
+         * @param v1
+         * @param v2
+         * @return
+         */
         @Override
         public KeyValue<K, V> transform(K k, V v1, V v2) {
             V newVal = transformValue(v1, v2);
             return KeyValue.pair(k, newVal);
         }
 
+        /**
+         *
+         * @param v1
+         * @param v2
+         * @return
+         */
         public abstract V transformValue(V v1, V v2);
     }
 }

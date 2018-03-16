@@ -15,15 +15,11 @@
  */
 package fi.ahto.kafka.streams.state.utils.tests;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import fi.ahto.kafka.streams.state.utils.SimpleValueTransformerSupplierWithStore;
-import fi.ahto.kafka.streams.state.utils.TransformerSupplierWithStore;
-import fi.ahto.kafka.streams.state.utils.ValueTransformerSupplierWithStore;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,33 +44,32 @@ import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.junit.Before;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.annotation.KafkaStreamsDefaultConfiguration;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.core.StreamsBuilderFactoryBean;
 import org.springframework.kafka.support.serializer.JsonSerde;
-import static org.hamcrest.Matchers.*;
-// import org.hamcrest.collection.*;
-// import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.kafka.test.rule.KafkaEmbedded;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  *
@@ -89,8 +84,9 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
     SimpleValueTransformerTests.INPUT_TOPIC,
     SimpleValueTransformerTests.TRANSFORMED_TOPIC,})
 
-// Not yet modified to use SimpleValueTransformerWithStore...
 public class SimpleValueTransformerTests {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleValueTransformerTests.class);
 
     public static final String INPUT_TOPIC = "input-topic";
     public static final String TRANSFORMED_TOPIC = "transformed-topic";
@@ -99,31 +95,15 @@ public class SimpleValueTransformerTests {
     private KafkaEmbedded embeddedKafka;
 
     @Autowired
-    private KafkaTemplate<String, TransformedData> transformedKafkaTemplate;
+    private KafkaTemplate<String, CommonData> inputKafkaTemplate;
 
     @Autowired
-    private StreamsBuilderFactoryBean streamsBuilderFactoryBean;
+    KStream<String, CommonData> kStream;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonSerde<CommonData> commonSerde;
 
-    @Autowired
-    KStream<String, TransformedData> kStream;
-
-    // NOTE: do NOT use these serdes, for some reason they always end up containing
-    // an ObjectMapper that is not customized, although the autowired one above is.
-    // Maybe converting them to beans could help, either here or in the configuration class?
-    // private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
-    // private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
-    // These ones compile, but the deserializer is still missing targettype. At least
-    // they are using the right ObjectMapper, the one configured in Configuration class.
-    // But let's test whether they work anyway. Ok, occasionally, but in some cases throw
-    // during deserialization, because now the are not in trusted packages... Solved
-    // by adding the type in JsonSerde constructor in beans.
-    @Autowired
-    private JsonSerde<TransformedData> transformedSerde;
-
-    static class TransformedData {
+    static class CommonData {
 
         @Override
         public boolean equals(Object obj) {
@@ -136,7 +116,7 @@ public class SimpleValueTransformerTests {
             if (getClass() != obj.getClass()) {
                 return false;
             }
-            final TransformedData other = (TransformedData) obj;
+            final CommonData other = (CommonData) obj;
             if (!Objects.equals(this.VehicleId, other.VehicleId)) {
                 return false;
             }
@@ -155,15 +135,19 @@ public class SimpleValueTransformerTests {
             return true;
         }
 
-        public TransformedData() {};
+        public CommonData() {
+        }
+
+        ;
         
-        public TransformedData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
+        public CommonData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
             this.VehicleId = VehicleId;
             this.RecordTime = RecordTime;
             this.Delay = Delay;
             this.DelayChange = DelayChange;
             this.MeasurementLength = MeasurementLength;
         }
+
         public String VehicleId;
         public Instant RecordTime;
         public Integer Delay;
@@ -171,45 +155,44 @@ public class SimpleValueTransformerTests {
         public Integer MeasurementLength;
     }
 
-    private List<TransformedData> Input = new ArrayList<>();
-    private List<TransformedData> Expected = new ArrayList<>();
+    private List<CommonData> Input = new ArrayList<>();
+    private List<CommonData> Expected = new ArrayList<>();
 
     @Before
     public void prepareData() {
-        Input.add(new TransformedData("123456", Instant.ofEpochSecond(1519557810), 10, null, null));
-        Input.add(new TransformedData("123456", Instant.ofEpochSecond(1519557830), 40, null, null));
-        Input.add(new TransformedData("123456", Instant.ofEpochSecond(1519557880), 20, null, null));
+        Input.add(new CommonData("123456", Instant.ofEpochSecond(1519557810), 10, null, null));
+        Input.add(new CommonData("123456", Instant.ofEpochSecond(1519557830), 40, null, null));
+        Input.add(new CommonData("123456", Instant.ofEpochSecond(1519557880), 20, null, null));
 
-        Expected.add(new TransformedData("123456", Instant.ofEpochSecond(1519557810), 10, null, null));
-        Expected.add(new TransformedData("123456", Instant.ofEpochSecond(1519557830), 40, 30, 20));
-        Expected.add(new TransformedData("123456", Instant.ofEpochSecond(1519557880), 20, -20, 50));
+        Expected.add(new CommonData("123456", Instant.ofEpochSecond(1519557810), 10, null, null));
+        Expected.add(new CommonData("123456", Instant.ofEpochSecond(1519557830), 40, 30, 20));
+        Expected.add(new CommonData("123456", Instant.ofEpochSecond(1519557880), 20, -20, 50));
     }
 
     @Test
     public void testTranformer() throws Exception {
-        System.out.println("Running test");
-        Consumer<String, TransformedData> consumer = consumer(TRANSFORMED_TOPIC, Serdes.String(), transformedSerde);
+        LOG.debug("Running test");
+        Consumer<String, CommonData> consumer = consumer(TRANSFORMED_TOPIC, Serdes.String(), commonSerde);
 
         // Put some data to the input streamin.
         Input.forEach((payload) -> {
-            transformedKafkaTemplate.send(INPUT_TOPIC, "21V", payload);
+            inputKafkaTemplate.send(INPUT_TOPIC, "21V", payload);
         });
-        transformedKafkaTemplate.flush();
+        inputKafkaTemplate.flush();
 
         // Consume records from the output of the streamin.
-        List<TransformedData> Results = new ArrayList<>();
-        ConsumerRecords<String, TransformedData> resultRecords = KafkaTestUtils.getRecords(consumer);
-        for (ConsumerRecord<String, TransformedData> output : resultRecords) {
-            System.out.println("Received vehicle " + output.value().VehicleId);
+        List<CommonData> Results = new ArrayList<>();
+        ConsumerRecords<String, CommonData> resultRecords = KafkaTestUtils.getRecords(consumer);
+        for (ConsumerRecord<String, CommonData> output : resultRecords) {
+            LOG.debug("Received vehicle " + output.value().VehicleId);
             Results.add(output.value());
         }
 
-        int i = 0;
         assertThat(Results,
                 containsInAnyOrder(Expected.toArray()));
     }
 
-    // Taken from ???
+    // Taken from org.springframework.kafka.kstream.KafkaStreamsJsonSerializationTests
     private <K, V> Consumer<K, V> consumer(String topic, Serde<K> keySerde, Serde<V> valueSerde) throws Exception {
         Map<String, Object> consumerProps
                 = KafkaTestUtils.consumerProps(UUID.randomUUID().toString(), "false", this.embeddedKafka);
@@ -232,17 +215,17 @@ public class SimpleValueTransformerTests {
 
         @Bean
         public KafkaTemplate<?, ?> kafkaTemplate() {
-            System.out.println("KafkaTemplate constructed");
+            LOG.debug("KafkaTemplate constructed");
             return new KafkaTemplate<>(producerFactory());
         }
 
         @Autowired
-        public JsonSerde<TransformedData> trandformedSerde;
+        public JsonSerde<CommonData> commonSerde;
 
         @Bean
-        public JsonSerde<TransformedData> serdeFactoryTransformedData() {
-            System.out.println("JsonSerde<TransformedData> constructed");
-            return new JsonSerde<>(TransformedData.class, customizedObjectMapper());
+        public JsonSerde<CommonData> serdeFactoryTransformedData() {
+            LOG.debug("JsonSerde<CommonData> constructed");
+            return new JsonSerde<>(CommonData.class, customizedObjectMapper());
         }
 
         @Bean
@@ -252,16 +235,16 @@ public class SimpleValueTransformerTests {
             mapper.disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS);
             mapper.disable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
             mapper.enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            System.out.println("customizedObjectMapper constructed");
+            LOG.debug("customizedObjectMapper constructed");
             return mapper;
         }
 
         @Bean
         public ProducerFactory<?, ?> producerFactory() {
-            final JsonSerde<TransformedData> valueserde = new JsonSerde<>(customizedObjectMapper());
-            DefaultKafkaProducerFactory<String, TransformedData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
+            final JsonSerde<CommonData> valueserde = new JsonSerde<>(customizedObjectMapper());
+            DefaultKafkaProducerFactory<String, CommonData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
             factory.setValueSerializer(valueserde.serializer());
-            System.out.println("ProducerFactory constructed");
+            LOG.debug("ProducerFactory constructed");
             return factory;
         }
 
@@ -277,15 +260,15 @@ public class SimpleValueTransformerTests {
 
         @Bean
         public Map<String, Object> consumerConfigs() {
-            Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(this.brokerAddresses, "testGroup",
+            Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(this.brokerAddresses, "test-output",
                     "false");
             consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
             return consumerProps;
         }
 
         @Bean
-        public ConsumerFactory<String, TransformedData> consumerFactory() {
-            System.out.println("ConsumerFactory constructed");
+        public ConsumerFactory<String, CommonData> consumerFactory() {
+            LOG.debug("ConsumerFactory constructed");
             return new DefaultKafkaConsumerFactory<>(consumerConfigs());
         }
 
@@ -299,58 +282,58 @@ public class SimpleValueTransformerTests {
         }
 
         @Bean
-        public KStream<String, TransformedData> kStream(StreamsBuilder builder) {
-            final TestValueTransformer transformer = new TestValueTransformer(builder, Serdes.String(), trandformedSerde, "test-store");
-            final KStream<String, TransformedData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), trandformedSerde));
+        public KStream<String, CommonData> kStream(StreamsBuilder builder) {
+            final TestValueTransformer transformer = new TestValueTransformer(builder, Serdes.String(), commonSerde, "test-store");
+            final KStream<String, CommonData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), commonSerde));
             streamin.map((key, value) -> {
-                System.out.println("Received key " + key);
+                LOG.debug("Received key " + key);
                 return KeyValue.pair(key, value);
             });
 
-            System.out.println("KStream constructed");
-            final KStream<String, TransformedData> streamout = streamin.transformValues(transformer, "test-store");
-            streamout.to(TRANSFORMED_TOPIC, Produced.with(Serdes.String(), trandformedSerde));
+            LOG.debug("KStream constructed");
+            final KStream<String, CommonData> streamout = streamin.transformValues(transformer, "test-store");
+            streamout.to(TRANSFORMED_TOPIC, Produced.with(Serdes.String(), commonSerde));
             return streamin;
         }
     }
-    
-    static class TestValueTransformer extends SimpleValueTransformerSupplierWithStore<String, TransformedData> {
 
-        public TestValueTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<TransformedData> valserde, String stateStoreName) {
+    static class TestValueTransformer extends SimpleValueTransformerSupplierWithStore<String, CommonData> {
+
+        public TestValueTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<CommonData> valserde, String stateStoreName) {
             super(builder, keyserde, valserde, stateStoreName);
         }
 
-        
         @Override
         public TransformerImpl createTransformer() {
             return new TransformerImpl() {
                 @Override
-                public TransformedData transform(TransformedData v) {
-                    TransformedData val = stateStore.get(v.VehicleId);
-                    TransformedData newVal = transform(val, v);
+                public CommonData transform(CommonData v) {
+                    CommonData val = stateStore.get(v.VehicleId);
+                    CommonData newVal = transform(val, v);
                     stateStore.put(v.VehicleId, v);
                     return newVal;
                 }
 
                 @Override
-                public TransformedData transform(TransformedData v1, TransformedData v2) {
+                public CommonData transform(CommonData v1, CommonData v2) {
                     return transformer(v1, v2);
                 }
-                // Overriding to get a clean state, otherwise the tests fail.
+
+                // Overriding to get a clean state, otherwise the test will fail.
                 @Override
                 public void init(ProcessorContext pc) {
-                    stateStore = (KeyValueStore<String, TransformedData>) pc.getStateStore(stateStoreName);
-                    KeyValueIterator<String, TransformedData> iter = stateStore.all();
+                    stateStore = (KeyValueStore<String, CommonData>) pc.getStateStore(stateStoreName);
+                    KeyValueIterator<String, CommonData> iter = stateStore.all();
                     while (iter.hasNext()) {
-                        KeyValue<String, TransformedData> next = iter.next();
+                        KeyValue<String, CommonData> next = iter.next();
                         stateStore.delete(next.key);
                     }
                 }
             };
         }
 
-        public TransformedData transformer(TransformedData v1, TransformedData v2) {
-            TransformedData rval = new TransformedData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
+        public CommonData transformer(CommonData v1, CommonData v2) {
+            CommonData rval = new CommonData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
             // There wasn't any previous value.
             if (v1 == null) {
                 return rval;
@@ -365,6 +348,5 @@ public class SimpleValueTransformerTests {
             }
             return rval;
         }
-
     }
 }

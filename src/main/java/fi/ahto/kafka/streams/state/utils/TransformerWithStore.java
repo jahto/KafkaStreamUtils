@@ -20,8 +20,19 @@ import org.apache.kafka.streams.kstream.Transformer;
 
 /**
  *
- * @author jah
+ * @author Jouni Ahto
+ * @param <K>   key type, also for saving into state store
+ * @param <V>   value type, also for saving into state store
+ * @param <VR>  return type
  */
 public interface TransformerWithStore<K, V, VR extends KeyValue<?, ?>> extends Transformer<K, V, VR> {
-        public VR transform(K k, V v1, V v2);
+
+    /**
+     *
+     * @param k
+     * @param v1
+     * @param v2
+     * @return
+     */
+    public VR transform(K k, V v1, V v2);
 }

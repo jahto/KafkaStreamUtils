@@ -20,12 +20,20 @@ import org.apache.kafka.streams.kstream.ValueTransformer;
 /**
  *
  * @author Jouni Ahto
- * @param <K>
- * @param <V>
- * @param <VO>
+ * @param <K>   key type for saving into state store
+ * @param <V>   value type, also for saving into state store
+ * @param <VR>  return type
  */
-public interface ValueTransformerWithStore<K, V, VR>  extends ValueTransformer<V, VR>{
-        @Override
-        public abstract VR transform(V v);
-        public abstract VR transform(V v1, V v2);
+public interface ValueTransformerWithStore<K, V, VR> extends ValueTransformer<V, VR> {
+
+    @Override
+    public abstract VR transform(V v);
+
+    /**
+     *
+     * @param v1
+     * @param v2
+     * @return
+     */
+    public abstract VR transform(V v1, V v2);
 }

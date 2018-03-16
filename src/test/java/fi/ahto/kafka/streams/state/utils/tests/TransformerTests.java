@@ -16,7 +16,6 @@
 package fi.ahto.kafka.streams.state.utils.tests;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -46,33 +45,32 @@ import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.junit.Before;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.annotation.KafkaStreamsDefaultConfiguration;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.core.StreamsBuilderFactoryBean;
 import org.springframework.kafka.support.serializer.JsonSerde;
-import static org.hamcrest.Matchers.*;
-// import org.hamcrest.collection.*;
-// import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.test.context.EmbeddedKafka;
+import org.springframework.kafka.test.rule.KafkaEmbedded;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.junit4.SpringRunner;
 
 /**
  *
@@ -89,6 +87,8 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 public class TransformerTests {
 
+    private static final Logger LOG = LoggerFactory.getLogger(TransformerTests.class);
+
     public static final String INPUT_TOPIC = "input-topic";
     public static final String TRANSFORMED_TOPIC = "transformed-topic";
 
@@ -99,26 +99,8 @@ public class TransformerTests {
     private KafkaTemplate<String, InputData> inputKafkaTemplate;
 
     @Autowired
-    private StreamsBuilderFactoryBean streamsBuilderFactoryBean;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
     KStream<String, InputData> kStream;
 
-    // NOTE: do NOT use these serdes, for some reason they always end up containing
-    // an ObjectMapper that is not customized, although the autowired one above is.
-    // Maybe converting them to beans could help, either here or in the configuration class?
-    // private final JsonSerde<InputData> inputSerde = new JsonSerde<>(InputData.class, objectMapper);
-    // private final JsonSerde<TransformedData> trandformedSerde = new JsonSerde<>(TransformedData.class, objectMapper);
-    // These ones compile, but the deserializer is still missing targettype. At least
-    // they are using the right ObjectMapper, the one configured in Configuration class.
-    // But let's test whether they work anyway. Ok, occasionally, but in some cases throw
-    // during deserialization, because now the are not in trusted packages... Solved
-    // by adding the type in JsonSerde constructor in beans.
-    @Autowired
-    private JsonSerde<InputData> inputSerde;
     @Autowired
     private JsonSerde<TransformedData> transformedSerde;
 
@@ -149,55 +131,20 @@ public class TransformerTests {
             return true;
         }
 
-        @JsonProperty("VehicleId")
-        public String getVehicleId() {
-            return VehicleId;
-        }
-
-        @JsonProperty("VehicleId")
-        public void setVehicleId(String VehicleId) {
-            this.VehicleId = VehicleId;
-        }
-
-        @JsonProperty("RecordTime")
-        public Instant getRecordTime() {
-            return RecordTime;
-        }
-
-        @JsonProperty("RecordTime")
-        public void setRecordTime(Instant RecordTime) {
-            this.RecordTime = RecordTime;
-        }
-
-        @JsonProperty("Delay")
-        public Integer getDelay() {
-            return Delay;
-        }
-
-        @JsonProperty("Delay")
-        public void setDelay(Integer Delay) {
-            this.Delay = Delay;
-        }
-
         public InputData() {
         }
 
         ;
         
-        public InputData(String VehicleId,
-                Instant RecordTime,
-                Integer Delay) {
+        public InputData(String VehicleId, Instant RecordTime, Integer Delay) {
             this.VehicleId = VehicleId;
             this.RecordTime = RecordTime;
             this.Delay = Delay;
         }
 
-        @JsonProperty("VehicleId")
-        private String VehicleId;
-        @JsonProperty("RecordTime")
-        private Instant RecordTime;
-        @JsonProperty("Delay")
-        private Integer Delay;
+        public String VehicleId;
+        public Instant RecordTime;
+        public Integer Delay;
     }
 
     static class TransformedData {
@@ -244,6 +191,7 @@ public class TransformerTests {
             this.DelayChange = DelayChange;
             this.MeasurementLength = MeasurementLength;
         }
+
         public String VehicleId;
         public Instant RecordTime;
         public Integer Delay;
@@ -267,7 +215,7 @@ public class TransformerTests {
 
     @Test
     public void testTranformer() throws Exception {
-        System.out.println("Running test");
+        LOG.debug("Running test");
         Consumer<String, TransformedData> consumer = consumer(TRANSFORMED_TOPIC, Serdes.String(), transformedSerde);
 
         // Put some data to the input streamin.
@@ -280,16 +228,15 @@ public class TransformerTests {
         List<TransformedData> Results = new ArrayList<>();
         ConsumerRecords<String, TransformedData> resultRecords = KafkaTestUtils.getRecords(consumer);
         for (ConsumerRecord<String, TransformedData> output : resultRecords) {
-            System.out.println("Received vehicle " + output.value().VehicleId);
+            LOG.debug("Received vehicle " + output.value().VehicleId);
             Results.add(output.value());
         }
 
-        int i = 0;
         assertThat(Results,
                 containsInAnyOrder(Expected.toArray()));
     }
 
-    // Taken from ???
+    // Taken from org.springframework.kafka.kstream.KafkaStreamsJsonSerializationTests
     private <K, V> Consumer<K, V> consumer(String topic, Serde<K> keySerde, Serde<V> valueSerde) throws Exception {
         Map<String, Object> consumerProps
                 = KafkaTestUtils.consumerProps(UUID.randomUUID().toString(), "false", this.embeddedKafka);
@@ -312,24 +259,25 @@ public class TransformerTests {
 
         @Bean
         public KafkaTemplate<?, ?> kafkaTemplate() {
-            System.out.println("KafkaTemplate constructed");
+            LOG.debug("KafkaTemplate constructed");
             return new KafkaTemplate<>(producerFactory());
         }
 
         @Autowired
         public JsonSerde<InputData> inputSerde;
+
         @Autowired
         public JsonSerde<TransformedData> trandformedSerde;
 
         @Bean
         public JsonSerde<InputData> serdeFactoryInputData() {
-            System.out.println("JsonSerde<InputData> constructed");
+            LOG.debug("JsonSerde<InputData> constructed");
             return new JsonSerde<>(InputData.class, customizedObjectMapper());
         }
 
         @Bean
         public JsonSerde<TransformedData> serdeFactoryTransformedData() {
-            System.out.println("JsonSerde<TransformedData> constructed");
+            LOG.debug("JsonSerde<TransformedData> constructed");
             return new JsonSerde<>(TransformedData.class, customizedObjectMapper());
         }
 
@@ -340,7 +288,7 @@ public class TransformerTests {
             mapper.disable(SerializationFeature.WRITE_DATE_TIMESTAMPS_AS_NANOSECONDS);
             mapper.disable(DeserializationFeature.READ_DATE_TIMESTAMPS_AS_NANOSECONDS);
             mapper.enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-            System.out.println("customizedObjectMapper constructed");
+            LOG.debug("customizedObjectMapper constructed");
             return mapper;
         }
 
@@ -349,7 +297,7 @@ public class TransformerTests {
             final JsonSerde<InputData> valueserde = new JsonSerde<>(customizedObjectMapper());
             DefaultKafkaProducerFactory<String, InputData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
             factory.setValueSerializer(valueserde.serializer());
-            System.out.println("ProducerFactory constructed");
+            LOG.debug("ProducerFactory constructed");
             return factory;
         }
 
@@ -365,7 +313,7 @@ public class TransformerTests {
 
         @Bean
         public Map<String, Object> consumerConfigs() {
-            Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(this.brokerAddresses, "testGroup",
+            Map<String, Object> consumerProps = KafkaTestUtils.consumerProps(this.brokerAddresses, "test-output",
                     "false");
             consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
             return consumerProps;
@@ -373,7 +321,7 @@ public class TransformerTests {
 
         @Bean
         public ConsumerFactory<String, InputData> consumerFactory() {
-            System.out.println("ConsumerFactory constructed");
+            LOG.debug("ConsumerFactory constructed");
             return new DefaultKafkaConsumerFactory<>(consumerConfigs());
         }
 
@@ -391,11 +339,11 @@ public class TransformerTests {
             final TestTransformer transformer = new TestTransformer(builder, Serdes.String(), inputSerde, "test-store");
             final KStream<String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
             streamin.map((key, value) -> {
-                System.out.println("Received key " + key);
+                LOG.debug("Received key " + key);
                 return KeyValue.pair(key, value);
             });
 
-            System.out.println("KStream constructed");
+            LOG.debug("KStream constructed");
             final KStream<String, TransformedData> streamout = streamin.transform(transformer, "test-store");
             streamout.to(TRANSFORMED_TOPIC, Produced.with(Serdes.String(), trandformedSerde));
             return streamin;
@@ -416,10 +364,10 @@ public class TransformerTests {
                     return transformer(k, v1, v2);
                 }
 
-                // Overriding to get a clean state, otherwise the tests fail.
+                // Overriding to get a clean state, otherwise the test will fail.
                 @Override
                 public void init(ProcessorContext pc) {
-                    stateStore = (KeyValueStore<String, InputData>) pc.getStateStore(stateStoreName);
+                    stateStore = (KeyValueStore<String, InputData>) pc.getStateStore(storeName);
                     KeyValueIterator<String, InputData> iter = stateStore.all();
                     while (iter.hasNext()) {
                         KeyValue<String, InputData> next = iter.next();

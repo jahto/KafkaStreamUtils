@@ -16,10 +16,7 @@
 package fi.ahto.kafka.streams.state.utils;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.kstream.Transformer;
-import org.apache.kafka.streams.kstream.TransformerSupplier;
 import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
@@ -30,27 +27,42 @@ import org.apache.kafka.streams.state.Stores;
 /**
  *
  * @author Jouni Ahto
- * @param <K>
- * @param <V>
- * @param <VR>
+ * @param <K>   key type for saving into state store
+ * @param <V>   value type, also for saving into state store
+ * @param <VR>  return type
  */
 public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         implements ValueTransformerSupplier<V, VR> {
-    
+
     final private TransformerImpl transformer;
+
+    /**
+     *
+     */
     final protected String stateStoreName;
 
-    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
-        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
+    /**
+     *
+     * @param builder   StreamsBuilder to use for adding the statestore 
+     * @param keyserde  Serde for persisting the key in the statestore
+     * @param valserde  Serde for persisting the value in the statestore
+     * @param storeName    statestore's name
+     */
+    public ValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(storeName),
                 keyserde,
                 valserde)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
-        this.stateStoreName = stateStoreName;
+        this.stateStoreName = storeName;
         this.transformer = createTransformer();
     }
 
+    /**
+     *
+     * @return
+     */
     public abstract TransformerImpl createTransformer();
 
     @Override
@@ -58,10 +70,16 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         return transformer;
     }
 
+    /**
+     *
+     */
     public abstract class TransformerImpl implements ValueTransformerWithStore<K, V, VR> {
 
+        /**
+         *
+         */
         protected KeyValueStore<K, V> stateStore;
-        
+
         @Override
         public void init(ProcessorContext pc) {
             stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
@@ -70,6 +88,12 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         @Override
         public abstract VR transform(V v);
 
+        /**
+         *
+         * @param v1
+         * @param v2
+         * @return
+         */
         @Override
         public abstract VR transform(V v1, V v2);
 

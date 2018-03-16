@@ -21,36 +21,96 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.Transformer;
 import org.apache.kafka.streams.kstream.TransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 
 /**
+ * Inner class TransformerImpl provides a default implementation for interface Transformer
+ * that fetches the previous value with the key used from store, calls transform(key, oldVal, value)
+ * that you must provide yourself, and then saves the old value in the store. Override if you need something
+ * fancier.
+ * 
+ * <pre class="code">
+ * 
+ *       &#064;Override
+ *       public VR transform(K key, V value) {
+ *           V oldVal = stateStore.get(key);
+ *           VR newVal = transform(key, oldVal, value);
+ *           stateStore.put(key, value);
+ *           return newVal;
+ *       }
+ * </pre>
+ * 
+ * An example of possible usage using a string as the key and fictional classes InputData and TransformedData:
+ * <pre class="code">
  *
- * @author Jouni Ahto
- * @param <K>
- * @param <V>
- * @param <VR>
- */
+ *     class MyTransformer extends TransformerSupplierWithStore&#60String, InputData, KeyValue&#60String, TransformedData>> {
+ *
+ *       public MyTransformer(StreamsBuilder builder, Serde&#60String> keyserde, Serde&#60InputData> valserde, String stateStoreName) {
+ *           super(builder, keyserde, valserde, stateStoreName);
+ *       }
+ *
+ *       &#064;Override
+ *       public TransformerImpl createTransformer() {
+ *           return new TransformerImpl() {
+ *               &#064;Override
+ *               public KeyValue&#60String, TransformedData> transform(String key, InputData previous, InputData current) {
+ *                   // Or do all the work here in case the transformation is very simple and can be done in a few lines.
+ *                   return transformer(k, v1, v2);
+ *               }
+ *           };
+ *      }
+ *
+ *      public KeyValue&#60String, TransformedData> transformer(String key, InputData previous, InputData current) {
+ *          // Do something here to construct a TransformedData rval and possibly a new key. Remember that previous can be null.
+ *          return KeyValue.pair(k, rval);
+ *      }
+ *   }
+ * 
+ *   MyTransformer transformer = new MyTransformer(builder, Serdes.String(), inputSerde, "test-store");
+ *   KStream&#60String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
+ *   KStream&#60String, TransformedData> streamout = streamin.transform(transformer, "test-store");
+ * </pre>
 
+ * @author Jouni Ahto
+ * 
+ * @param <K>   key type, also for saving into state store
+ * @param <V>   value type, also for saving into state store
+ * @param <VR>  return type
+ */
 public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, ?>>
         implements TransformerSupplier<K, V, VR> {
-    
-    final private TransformerImpl transformer;
-    final protected String stateStoreName;
 
-    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String stateStoreName) {
-        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(stateStoreName),
+    final private TransformerImpl transformer;
+
+    /**
+     *
+     */
+    final protected String storeName;
+
+    /**
+     *
+     * @param builder   StreamsBuilder to use for adding the statestore 
+     * @param keyserde  Serde for persisting the key in the statestore
+     * @param valserde  Serde for persisting the value in the statestore
+     * @param storeName    statestore's name
+     */
+    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+        StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(storeName),
                 keyserde,
                 valserde)
                 .withCachingEnabled();
 
         builder.addStateStore(store);
-        this.stateStoreName = stateStoreName;
+        this.storeName = storeName;
         this.transformer = createTransformer();
     }
 
+    /**
+     *
+     * @return
+     */
     public abstract TransformerImpl createTransformer();
 
     @Override
@@ -58,25 +118,38 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
         return transformer;
     }
 
+    /**
+     *
+     */
     public abstract class TransformerImpl implements TransformerWithStore<K, V, VR> {
 
+        /**
+         *
+         */
         protected KeyValueStore<K, V> stateStore;
 
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
+            stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
         }
 
         @Override
-        public VR transform(K k, V v) {
-            V oldVal = stateStore.get(k);
-            VR newVal = transform(k, oldVal, v);
-            stateStore.put(k, v);
+        public VR transform(K key, V value) {
+            V oldVal = stateStore.get(key);
+            VR newVal = transform(key, oldVal, value);
+            stateStore.put(key, value);
             return newVal;
         }
 
+        /**
+         *
+         * @param key
+         * @param oldValue
+         * @param newValue
+         * @return
+         */
         @Override
-        public abstract VR transform(K k, V v1, V v2);
+        public abstract VR transform(K key, V oldValue, V newValue);
 
         @Override
         public VR punctuate(long l) {

@@ -16,29 +16,31 @@
 package fi.ahto.kafka.streams.state.utils;
 
 import org.apache.kafka.common.serialization.Serde;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 
 /**
  *
  * @author Jouni Ahto
- * @param <K>
- * @param <V>
+ * @param <K>   both incoming and returned key type, also for saving into state store
+ * @param <V>   both incoming and returned value type, also for saving into state store
  */
 public abstract class SimpleValueTransformerSupplierWithStore<K, V>
         extends ValueTransformerSupplierWithStore<K, V, V> {
 
     /**
      *
-     * @param builder
-     * @param serdekey
-     * @param serdeval
-     * @param stateStoreName
+     * @param builder   StreamsBuilder to use for adding the statestore 
+     * @param keyserde  Serde for persisting the key in the statestore
+     * @param valserde  Serde for persisting the value in the statestore
+     * @param storeName    statestore's name
      */
-    public SimpleValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> serdekey, Serde<V> serdeval, String stateStoreName) {
-        super(builder, serdekey, serdeval, stateStoreName);
+    public SimpleValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+        super(builder, keyserde, valserde, storeName);
     }
 
+    /**
+     *
+     */
     public abstract class TransformerImpl
             extends ValueTransformerSupplierWithStore<K, V, V>.TransformerImpl
             implements ValueTransformerWithStore<K, V, V> {
@@ -46,6 +48,12 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
         @Override
         public abstract V transform(V v);
 
+        /**
+         *
+         * @param v1
+         * @param v2
+         * @return
+         */
         @Override
         public abstract V transform(V v1, V v2);
 
