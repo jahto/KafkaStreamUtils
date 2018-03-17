@@ -19,6 +19,10 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.StreamsBuilder;
 
 /**
+ * Partial implementation of interface ValueTransformerSupplier having a statestore.
+ * <p>
+ * A wrapper for ValueTransformerSupplierWithStore. Use this in case your transformed data has the same value type.
+ * Useful when you only intend to add some missing information to an already existing value.
  *
  * @author Jouni Ahto
  * @param <K>   both incoming and returned key type, also for saving into state store
@@ -39,23 +43,23 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
     }
 
     /**
-     *
+     * Implementation of Transformer.
      */
-    public abstract class TransformerImpl
+    protected abstract class TransformerImpl
             extends ValueTransformerSupplierWithStore<K, V, V>.TransformerImpl
             implements ValueTransformerWithStore<K, V, V> {
 
         @Override
-        public abstract V transform(V v);
+        public abstract V transform(V current);
 
         /**
          *
-         * @param v1
-         * @param v2
+         * @param previous
+         * @param current
          * @return
          */
         @Override
-        public abstract V transform(V v1, V v2);
+        public abstract V transform(V previous, V current);
 
     }
 }

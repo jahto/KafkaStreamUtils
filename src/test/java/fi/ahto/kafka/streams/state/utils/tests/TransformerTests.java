@@ -354,8 +354,8 @@ public class TransformerTests {
         public TransformerImpl createTransformer() {
             return new TransformerImpl() {
                 @Override
-                public KeyValue<String, TransformedData> transform(String k, InputData v1, InputData v2) {
-                    return transformer(k, v1, v2);
+                public KeyValue<String, TransformedData> transform(String key, InputData previous, InputData current) {
+                    return transformer(key, previous, current);
                 }
 
                 // Overriding to get a clean state, otherwise the test will fail.
@@ -368,24 +368,24 @@ public class TransformerTests {
                         stateStore.delete(next.key);
                     }
                 }
+                
+                private KeyValue<String, TransformedData> transformer(String key, InputData previous, InputData current) {
+                    TransformedData transformed = new TransformedData(current.VehicleId, current.RecordTime, current.Delay, null, null);
+                    // There wasn't any previous value.
+                    if (previous == null) {
+                        return KeyValue.pair(key, transformed);
+                    }
+
+                    if (previous.RecordTime != null && current.RecordTime != null) {
+                        transformed.MeasurementLength = (int) current.RecordTime.getEpochSecond() - (int) previous.RecordTime.getEpochSecond();
+                    }
+
+                    if (previous.Delay != null && current.Delay != null) {
+                        transformed.DelayChange = current.Delay - previous.Delay;
+                    }
+                    return KeyValue.pair(key, transformed);
+                }
             };
-        }
-
-        public KeyValue<String, TransformedData> transformer(String k, InputData v1, InputData v2) {
-            TransformedData rval = new TransformedData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
-            // There wasn't any previous value.
-            if (v1 == null) {
-                return KeyValue.pair(k, rval);
-            }
-
-            if (v1.RecordTime != null && v2.RecordTime != null) {
-                rval.MeasurementLength = (int) v2.RecordTime.getEpochSecond() - (int) v1.RecordTime.getEpochSecond();
-            }
-
-            if (v1.Delay != null && v2.Delay != null) {
-                rval.DelayChange = v2.Delay - v1.Delay;
-            }
-            return KeyValue.pair(k, rval);
         }
     }
 }

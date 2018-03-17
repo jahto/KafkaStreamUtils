@@ -25,6 +25,47 @@ import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 
 /**
+ * Partial implementation of interface ValueTransformerSupplier having a statestore.
+ * <p>
+ * An example of possible usage using a string as the key and fictional classes InputData and TransformedData:
+
+* <pre class="code">
+ * 
+ *   class MyValueTransformer extends ValueTransformerSupplierWithStore&#60;String, InputData, TransformedData> {
+ *
+ *       public MyValueTransformer(StreamsBuilder builder, Serde&#60;String> keyserde, Serde&#60;InputData> valserde, String stateStoreName) {
+ *           super(builder, keyserde, valserde, stateStoreName);
+ *       }
+ *
+ *       &#064;Override
+ *       public TransformerImpl createTransformer() {
+ *           return new TransformerImpl() {
+ *               &#064;Override
+ *               public TransformedData transform(InputData current) {
+ *                   InputData previous = stateStore.get(current.possiblekey);
+ *                   TransformedData transformed = transform(previous, current);
+ *                   stateStore.put(current.possiblekey, current);
+ *                   return transformed;
+ *               }
+ *
+ *               &#064;Override
+ *               public TransformedData transform(InputData previous, InputData current) {
+ *                   // Or do all the work here in case the transformation is very simple and can be done in a few lines.
+ *                   return transformer(previous, current);
+ *               }
+ *               
+ *               private TransformedData transformer(InputData previous, InputData current) {
+ *                   // Do something here to construct a TransformedData transformed. Remember that previous can be null.
+ *                   return transformed.
+ *               }
+ *           };
+ *       }
+ *   }
+ * 
+ *   MyValueTransformer transformer = new MyValueTransformer(builder, Serdes.String(), inputSerde, STORE_NAME);
+ *   KStream&#60;String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
+ *   KStream&#60;String, TransformedData> streamout = streamin.transform(transformer, STORE_NAME);
+ * </pre>
  *
  * @author Jouni Ahto
  * @param <K>   key type for saving into state store
@@ -39,7 +80,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
     /**
      *
      */
-    final protected String stateStoreName;
+    final protected String storeName;
 
     /**
      *
@@ -55,7 +96,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
                 .withCachingEnabled();
 
         builder.addStateStore(store);
-        this.stateStoreName = storeName;
+        this.storeName = storeName;
         this.transformer = createTransformer();
     }
 
@@ -63,7 +104,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
      *
      * @return
      */
-    public abstract TransformerImpl createTransformer();
+    protected abstract TransformerImpl createTransformer();
 
     @Override
     public ValueTransformer<V, VR> get() {
@@ -71,9 +112,9 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
     }
 
     /**
-     *
+     * Implementation of Transformer.
      */
-    public abstract class TransformerImpl implements ValueTransformerWithStore<K, V, VR> {
+    protected abstract class TransformerImpl implements ValueTransformerWithStore<K, V, VR> {
 
         /**
          *
@@ -82,20 +123,20 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
 
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K, V>) pc.getStateStore(stateStoreName);
+            stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
         }
 
         @Override
-        public abstract VR transform(V v);
+        public abstract VR transform(V current);
 
         /**
          *
-         * @param v1
-         * @param v2
+         * @param previous
+         * @param current
          * @return
          */
         @Override
-        public abstract VR transform(V v1, V v2);
+        public abstract VR transform(V previous, V current);
 
         @Override
         public VR punctuate(long l) {

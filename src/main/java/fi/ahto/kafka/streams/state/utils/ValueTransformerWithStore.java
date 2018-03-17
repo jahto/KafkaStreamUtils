@@ -25,15 +25,11 @@ import org.apache.kafka.streams.kstream.ValueTransformer;
  * @param <VR>  return type
  */
 public interface ValueTransformerWithStore<K, V, VR> extends ValueTransformer<V, VR> {
-
-    @Override
-    public abstract VR transform(V v);
-
     /**
      *
-     * @param v1
-     * @param v2
+     * @param previous
+     * @param current
      * @return
      */
-    public abstract VR transform(V v1, V v2);
+    VR transform(V previous, V current);
 }

@@ -305,8 +305,8 @@ public class SimpleTransformerTests {
         public TransformerImpl createTransformer() {
             return new TransformerImpl() {
                 @Override
-                public CommonData transformValue(CommonData v1, CommonData v2) {
-                    return transformer(v1, v2);
+                public CommonData transformValue(CommonData previous, CommonData current) {
+                    return transformer(previous, current);
                 }
 
                 // Overriding to get a clean state, otherwise the test will fail.
@@ -319,24 +319,24 @@ public class SimpleTransformerTests {
                         stateStore.delete(next.key);
                     }
                 }
+                
+                private CommonData transformer(CommonData previous, CommonData current) {
+                    CommonData transformed = new CommonData(current.VehicleId, current.RecordTime, current.Delay, null, null);
+                    // There wasn't any previous value.
+                    if (previous == null) {
+                        return transformed;
+                    }
+
+                    if (previous.RecordTime != null && current.RecordTime != null) {
+                        transformed.MeasurementLength = (int) current.RecordTime.getEpochSecond() - (int) previous.RecordTime.getEpochSecond();
+                    }
+
+                    if (previous.Delay != null && current.Delay != null) {
+                        transformed.DelayChange = current.Delay - previous.Delay;
+                    }
+                    return transformed;
+                }
             };
-        }
-
-        public CommonData transformer(CommonData v1, CommonData v2) {
-            CommonData rval = new CommonData(v2.VehicleId, v2.RecordTime, v2.Delay, null, null);
-            // There wasn't any previous value.
-            if (v1 == null) {
-                return rval;
-            }
-
-            if (v1.RecordTime != null && v2.RecordTime != null) {
-                rval.MeasurementLength = (int) v2.RecordTime.getEpochSecond() - (int) v1.RecordTime.getEpochSecond();
-            }
-
-            if (v1.Delay != null && v2.Delay != null) {
-                rval.DelayChange = v2.Delay - v1.Delay;
-            }
-            return rval;
         }
     }
 }

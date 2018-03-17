@@ -20,6 +20,23 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 
 /**
+ * Partial implementation of interface TransformerSupplier having a statestore.
+ * <p>
+ * A wrapper for TransformerSupplierWithStore. Use this in case your transformed data has the same key and value types
+ * and you aren't going to change the key. Useful when you only intend to add some missing information to an already
+ * existing value.
+ *
+ * <p>
+ * Inner class TransformerImpl inherits transform(K key, V current) from TransformerSupplierWithStore.TransformerImpl and
+ * provides a default implementation for transform(V previous, V current) that makes sure you don't actually change the key.
+
+ * <pre class="code">
+ * &#064;Override
+ * public KeyValue&#60;K, V> transform(K key, V previous, V current) {
+ *     V transformed = transformValue(previous, current);
+ *     return KeyValue.pair(key, transformed);
+ * }
+ * </pre>
  *
  * @author Jouni Ahto
  * @param <K>   both incoming and returned key type, also for saving into state store
@@ -40,31 +57,31 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
     }
 
     /**
-     *
+     * Implementation of Transformer.
      */
-    public abstract class TransformerImpl
+    protected abstract class TransformerImpl
             extends TransformerSupplierWithStore<K, V, KeyValue<K, V>>.TransformerImpl
             implements TransformerWithStore<K, V, KeyValue<K, V>> {
 
         /**
          *
-         * @param k
-         * @param v1
-         * @param v2
+         * @param key
+         * @param previous
+         * @param current
          * @return
          */
         @Override
-        public KeyValue<K, V> transform(K k, V v1, V v2) {
-            V newVal = transformValue(v1, v2);
-            return KeyValue.pair(k, newVal);
+        public KeyValue<K, V> transform(K key, V previous, V current) {
+            V transformed = transformValue(previous, current);
+            return KeyValue.pair(key, transformed);
         }
 
         /**
          *
-         * @param v1
-         * @param v2
+         * @param previous
+         * @param current
          * @return
          */
-        public abstract V transformValue(V v1, V v2);
+        protected abstract V transformValue(V previous, V current);
     }
 }
