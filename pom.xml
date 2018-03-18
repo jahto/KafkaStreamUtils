@@ -84,7 +84,7 @@
                 <version>3.0.0</version>
                 <configuration>
                     <!-- <reportOutputDirectory>${project.reporting.outputDirectory}/myoutput</reportOutputDirectory> -->
-                    <destDir>../../../apidocs</destDir>
+                    <destDir>../../../docs</destDir>
                     <show>private</show>
                 </configuration>
             </plugin>
