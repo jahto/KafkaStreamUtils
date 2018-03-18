@@ -12,6 +12,8 @@ So, if you happen to use these utils, be prepared for changes.
 
 Simple examples of every class can be found in the test directory.
 
+API docs available at https://jahto.github.io/KafkaStreamsStateUtils/.
+
 ## Main classes
 
 ### TransformerSupplierWithStore
