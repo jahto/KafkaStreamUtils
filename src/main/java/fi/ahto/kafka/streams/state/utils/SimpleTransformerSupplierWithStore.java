@@ -28,7 +28,7 @@ import org.apache.kafka.streams.StreamsBuilder;
  *
  * <p>
  * Inner class TransformerImpl inherits transform(K key, V current) from TransformerSupplierWithStore.TransformerImpl and
- * provides a default implementation for transform(V previous, V current) that makes sure you don't actually change the key.
+ * provides a default implementation for transform(K key, V previous, V current) that makes sure you don't actually change the key.
 
  * <pre class="code">
  * &#064;Override
@@ -36,6 +36,8 @@ import org.apache.kafka.streams.StreamsBuilder;
  *     V transformed = transformValue(previous, current);
  *     return KeyValue.pair(key, transformed);
  * }
+ * 
+ * // Provide your implementation of transformValue(previous, current).
  * </pre>
  *
  * @author Jouni Ahto

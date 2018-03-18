@@ -34,7 +34,7 @@ public VR transform(K key, V current) {
 An example of possible usage using a string as the key and fictional classes InputData and TransformedData:
 
 ```
-    class MyTransformer extends TransformerSupplierWithStore<String, InputData, KeyValue&<String, TransformedData>> {
+    class MyTransformer extends TransformerSupplierWithStore<String, InputData, KeyValue<String, TransformedData>> {
 
         public MyTransformer(StreamsBuilder builder, Serde<String> keyserde, Serde<InputData> valserde, String storeName) {
             super(builder, keyserde, valserde, storeName);
@@ -57,9 +57,9 @@ An example of possible usage using a string as the key and fictional classes Inp
         }
     }
  
-    MyTransformer transformer = new MyTransformer(builder, Serdes.String(), inputSerde, "test-store");
+    MyTransformer transformer = new MyTransformer(builder, Serdes.String(), inputSerde, STORE_NAME);
     KStream<tring, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
-    KStream<String, TransformedData> streamout = streamin.transform(transformer, "test-store");
+    KStream<String, TransformedData> streamout = streamin.transform(transformer, STORE_NAME);
 ```
 ### ValueTransformerSupplierWithStore
 
@@ -96,6 +96,10 @@ An example of possible usage using a string as the key and fictional classes Inp
             };
         }
     }
+
+    MyValueTransformer transformer = new MyValueTransformer(builder, Serdes.String(), inputSerde, STORE_NAME);
+    KStream<tring, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
+    KStream<String, TransformedData> streamout = streamin.transform(transformer, STORE_NAME);
 ```
 
 ### SimpleTransformerSupplierWithStore
@@ -105,7 +109,7 @@ and you aren't going to change the key. Useful when you only intend to add some 
 existing value.
 
 Inner class TransformerImpl inherits transform(K key, V current) from TransformerSupplierWithStore.TransformerImpl and
-provides a default implementation for transform(V previous, V current) that makes sure yous don't actually change the key.
+provides a default implementation for transform(K key, V previous, V current) that makes sure yous don't actually change the key.
 
 ```
 @Override
@@ -113,6 +117,8 @@ public KeyValue<K, V> transform(K key, V previous, V current) {
     V transformed = transformValue(previous, current);
     return KeyValue.pair(key, transformed);
 }
+
+// Provide your implementation of transformValue(previous, current).
 ```
 
 ### SimpleValueTransformerSupplierWithStore
