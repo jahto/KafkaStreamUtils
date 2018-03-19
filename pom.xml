@@ -1,10 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>fi.ahto.kafka.stream.utils</groupId>
-    <artifactId>KafkaStreamsStateUtils</artifactId>
+    
+    <groupId>com.github.jahto</groupId>
+    <artifactId>kafka-streams-state-utils</artifactId>
     <version>0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
+    
+    <name>KafkaStreamsStateUtils</name>
+    <description>Small utilities to help attaching a state store to Kafka processing pipeline.</description>
+    <url>https://github.com/jahto/KafkaStreamsStateUtils/</url>
+    
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>jahto</id>            
+            <name>Jouni Ahto</name>
+            <email>jahto@welho.com</email>
+            <url>https://github.com/jahto/</url>
+        </developer>
+    </developers>
+    
+    <scm>
+        <connection>scm:git:git://github.com/jahto/KafkaStreamsStateUtils.git</connection>
+        <developerConnection>scm:git:ssh://github.com:jahto/KafkaStreamsStateUtils.git</developerConnection>
+        <url>https://github.com/jahto/KafkaStreamsStateUtils/src</url>
+    </scm>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -83,12 +111,10 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>3.0.0</version>
                 <configuration>
-                    <!-- <reportOutputDirectory>${project.reporting.outputDirectory}/myoutput</reportOutputDirectory> -->
                     <destDir>../../../docs</destDir>
                     <show>private</show>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-    <name>KafkaStreamsStateUtils</name>
 </project>
