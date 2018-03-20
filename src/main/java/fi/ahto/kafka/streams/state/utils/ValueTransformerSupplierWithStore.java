@@ -139,6 +139,7 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         public abstract VR transform(V previous, V current);
 
         @Override
+        @SuppressWarnings("deprecation")
         public VR punctuate(long l) {
             // Not needed and also deprecated.
             return null;

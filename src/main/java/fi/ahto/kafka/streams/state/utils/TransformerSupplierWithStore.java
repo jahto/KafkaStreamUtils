@@ -170,6 +170,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
         public abstract VR transform(K key, V previous, V current);
 
         @Override
+        @SuppressWarnings("deprecation")
         public VR punctuate(long l) {
             // Not needed and also deprecated.
             return null;
