@@ -145,10 +145,12 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
          *
          */
         protected KeyValueStore<K, V> stateStore;
+        protected ProcessorContext context;
 
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
+            this.context = pc;
+            this.stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
         }
 
         @Override

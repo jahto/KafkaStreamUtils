@@ -120,10 +120,12 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
          *
          */
         protected KeyValueStore<K, V> stateStore;
+        protected ProcessorContext context;
 
         @Override
         public void init(ProcessorContext pc) {
-            stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
+            this.context = pc;
+            this.stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
         }
 
         @Override
