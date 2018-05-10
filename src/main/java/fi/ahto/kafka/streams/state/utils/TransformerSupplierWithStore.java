@@ -83,12 +83,6 @@ import org.apache.kafka.streams.state.Stores;
  */
 public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, ?>>
         implements TransformerSupplier<K, V, VR> {
-
-    final private TransformerImpl transformer;
-
-    /**
-     *
-     */
     final protected String storeName;
 
     /**
@@ -106,7 +100,6 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
 
         builder.addStateStore(store);
         this.storeName = storeName;
-        this.transformer = createTransformer();
     }
 
     /**
@@ -124,18 +117,12 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
      * 
      * @return  transformer implementation
      */
-    protected abstract TransformerImpl createTransformer();
 
     /**
      * Return your TransformerImpl here.
      * 
      * @return  transformer implementation
      */
-    @Override
-    public Transformer<K, V, VR> get() {
-        return transformer;
-    }
-
     /**
      * Implementation of Transformer.
      */

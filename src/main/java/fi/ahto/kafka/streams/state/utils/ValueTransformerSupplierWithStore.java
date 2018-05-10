@@ -74,12 +74,6 @@ import org.apache.kafka.streams.state.Stores;
  */
 public abstract class ValueTransformerSupplierWithStore<K, V, VR>
         implements ValueTransformerSupplier<V, VR> {
-
-    final private TransformerImpl transformer;
-
-    /**
-     *
-     */
     final protected String storeName;
 
     /**
@@ -97,18 +91,6 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
 
         builder.addStateStore(store);
         this.storeName = storeName;
-        this.transformer = createTransformer();
-    }
-
-    /**
-     *
-     * @return
-     */
-    protected abstract TransformerImpl createTransformer();
-
-    @Override
-    public ValueTransformer<V, VR> get() {
-        return transformer;
     }
 
     /**

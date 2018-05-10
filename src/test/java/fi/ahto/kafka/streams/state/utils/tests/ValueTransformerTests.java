@@ -42,6 +42,7 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.ValueTransformer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import org.junit.Before;
@@ -347,6 +348,10 @@ public class ValueTransformerTests {
         }
 
         @Override
+        public ValueTransformer<InputData, TransformedData> get() {
+            return createTransformer();
+        }
+
         public TransformerImpl createTransformer() {
             return new TransformerImpl() {
                 @Override

@@ -42,6 +42,7 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.Transformer;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -351,6 +352,10 @@ public class TransformerTests {
         }
 
         @Override
+        public Transformer<String, InputData, KeyValue<String, TransformedData>> get() {
+            return createTransformer();
+        }
+
         public TransformerImpl createTransformer() {
             return new TransformerImpl() {
                 @Override
