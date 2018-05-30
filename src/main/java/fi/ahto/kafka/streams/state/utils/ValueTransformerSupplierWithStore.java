@@ -31,9 +31,9 @@ import org.apache.kafka.streams.state.Stores;
 
 * <pre class="code">
  * 
- *   class MyValueTransformer extends ValueTransformerSupplierWithStore&#60;String, InputData, TransformedData> {
+ *   class MyValueTransformer extends ValueTransformerSupplierWithStore&#60;String, InputData, TransformedData&#62; {
  *
- *       public MyValueTransformer(StreamsBuilder builder, Serde&#60;String> keyserde, Serde&#60;InputData> valserde, String stateStoreName) {
+ *       public MyValueTransformer(StreamsBuilder builder, Serde&#60;String&#62; keyserde, Serde&#60;InputData&#62; valserde, String stateStoreName) {
  *           super(builder, keyserde, valserde, stateStoreName);
  *       }
  *
@@ -63,8 +63,8 @@ import org.apache.kafka.streams.state.Stores;
  *   }
  * 
  *   MyValueTransformer transformer = new MyValueTransformer(builder, Serdes.String(), inputSerde, STORE_NAME);
- *   KStream&#60;String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
- *   KStream&#60;String, TransformedData> streamout = streamin.transform(transformer, STORE_NAME);
+ *   KStream&#60;String, InputData&#62; streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
+ *   KStream&#60;String, TransformedData&#62; streamout = streamin.transform(transformer, STORE_NAME);
  * </pre>
  *
  * @author Jouni Ahto

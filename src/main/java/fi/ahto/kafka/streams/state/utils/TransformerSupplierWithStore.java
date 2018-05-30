@@ -47,9 +47,9 @@ import org.apache.kafka.streams.state.Stores;
  * An example of possible usage using a string as the key and fictional classes InputData and TransformedData:
  * <pre class="code">
  *
- *  class MyTransformer extends TransformerSupplierWithStore&#60;String, InputData, KeyValue&#60;String, TransformedData>> {
+ *  class MyTransformer extends TransformerSupplierWithStore&#60;String, InputData, KeyValue&#60;String, TransformedData&#62;&#62; {
  *
- *      public MyTransformer(StreamsBuilder builder, Serde&#60;String> keyserde, Serde&#;60InputData> valserde, String storeName) {
+ *      public MyTransformer(StreamsBuilder builder, Serde&#60;String&#62; keyserde, Serde&#60;InputData&#62; valserde, String storeName) {
  *          super(builder, keyserde, valserde, storeName);
  *      }
  *
@@ -57,12 +57,12 @@ import org.apache.kafka.streams.state.Stores;
  *      public TransformerImpl get() {
  *          return new TransformerImpl() {
  *              &#064;Override
- *              public KeyValue&#60;String, TransformedData> transform(String key, InputData previous, InputData current) {
+ *              public KeyValue&#60;String, TransformedData&#62; transform(String key, InputData previous, InputData current) {
  *                  // Or do all the work here in case the transformation is very simple and can be done in a few lines.
  *                  return transformer(key, previous, current);
  *              }
  * 
- *              private KeyValue&#60;String, TransformedData> transformer(String key, InputData previous, InputData current) {
+ *              private KeyValue&#60;String, TransformedData&#62; transformer(String key, InputData previous, InputData current) {
  *                  // Do something here to construct a TransformedData transformed and possibly a new key. Remember that previous can be null.
  *                  return KeyValue.pair(key, transformed);
  *              }
@@ -71,8 +71,8 @@ import org.apache.kafka.streams.state.Stores;
  *  }
  * 
  *  MyTransformer transformer = new MyTransformer(builder, Serdes.String(), inputSerde, STORE_NAME);
- *  KStream&#60String, InputData> streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
- *  KStream&#60String, TransformedData> streamout = streamin.transform(transformer, STORE_NAME);
+ *  KStream&#60;String, InputData&#62; streamin = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), inputSerde));
+ *  KStream&#60;String, TransformedData&#62; streamout = streamin.transform(transformer, STORE_NAME);
  * </pre>
  *
  * @author Jouni Ahto
