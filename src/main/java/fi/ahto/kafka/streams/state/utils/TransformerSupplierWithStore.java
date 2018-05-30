@@ -29,8 +29,8 @@ import org.apache.kafka.streams.state.Stores;
  * Partial implementation of interface TransformerSupplier having a statestore.
  * 
  * Inner class TransformerImpl provides a default implementation for interface Transformer
- that fetches the previous value with the key used from store, calls transform(key, previous, value)
- that you must provide yourself, and then saves the old value in the store. Override if you need something
+ * that fetches the previous value with the key used from store, calls transform(key, previous, value)
+ * that you must provide yourself, and then saves the current value in the store. Override if you need something
  * fancier.
  * 
  * <pre class="code">
@@ -54,7 +54,7 @@ import org.apache.kafka.streams.state.Stores;
  *      }
  *
  *      &#064;Override
- *      public TransformerImpl createTransformer() {
+ *      public TransformerImpl get() {
  *          return new TransformerImpl() {
  *              &#064;Override
  *              public KeyValue&#60;String, TransformedData> transform(String key, InputData previous, InputData current) {
@@ -108,7 +108,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
      * <pre class="code">
      * 
      * &#064;Override
-     * TransformerImpl createTransformer() {
+     * TransformerImpl get() {
      *     return new TransformerImpl() {
      *         ...
      *     }
@@ -117,12 +117,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
      * 
      * @return  transformer implementation
      */
-
-    /**
-     * Return your TransformerImpl here.
-     * 
-     * @return  transformer implementation
-     */
+    
     /**
      * Implementation of Transformer.
      */

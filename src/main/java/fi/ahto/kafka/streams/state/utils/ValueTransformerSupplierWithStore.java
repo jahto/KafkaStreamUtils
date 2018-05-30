@@ -38,7 +38,7 @@ import org.apache.kafka.streams.state.Stores;
  *       }
  *
  *       &#064;Override
- *       public TransformerImpl createTransformer() {
+ *       public TransformerImpl get() {
  *           return new TransformerImpl() {
  *               &#064;Override
  *               public TransformedData transform(InputData current) {

@@ -20,7 +20,7 @@ API docs available at https://jahto.github.io/KafkaStreamsStateUtils/.
 
 Inner class TransformerImpl provides a default implementation for Kafka interface Transformer
 that fetches the previous value with the key used from store, calls transform(key, previous, current)
-that you must provide yourself, and then saves the old value in the store. Override if you need something
+that you must provide yourself, and then saves the current value in the store. Override if you need something
 fancier.
  
 ```
@@ -43,7 +43,7 @@ An example of possible usage using a string as the key and fictional classes Inp
         }
 
         @Override
-        public TransformerImpl createTransformer() {
+        public TransformerImpl get() {
             return new TransformerImpl() {
                 @Override
                 public KeyValue<String, TransformedData> transform(String key, InputData previous, InputData current) {
@@ -75,7 +75,7 @@ An example of possible usage using a string as the key and fictional classes Inp
         }
 
         @Override
-        public TransformerImpl createTransformer() {
+        public TransformerImpl get() {
             return new TransformerImpl() {
                 @Override
                 public TransformedData transform(InputData current) {

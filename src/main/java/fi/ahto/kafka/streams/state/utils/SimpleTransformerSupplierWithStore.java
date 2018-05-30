@@ -32,7 +32,7 @@ import org.apache.kafka.streams.StreamsBuilder;
 
  * <pre class="code">
  * &#064;Override
- * public KeyValue&#60;K, V> transform(K key, V previous, V current) {
+ * public KeyValue&#60;K, V&#60; transform(K key, V previous, V current) {
  *     V transformed = transformValue(previous, current);
  *     return KeyValue.pair(key, transformed);
  * }

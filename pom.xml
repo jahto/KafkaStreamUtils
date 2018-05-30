@@ -111,6 +111,7 @@
                 <configuration>
                     <destDir>../../../docs</destDir>
                     <show>private</show>
+                    <failOnErrors>false</failOnErrors>
                 </configuration>
             </plugin>
         </plugins>
