@@ -34,5 +34,5 @@ public interface TransformerWithStore<K, V, VR extends KeyValue<?, ?>> extends T
      * @param current
      * @return
      */
-    VR transform(K key, V previous, V current);
+    VR transform(final K key, final V previous, final V current);
 }

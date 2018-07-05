@@ -38,7 +38,7 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
      * @param valserde  Serde for persisting the value in the statestore
      * @param storeName    statestore's name
      */
-    public SimpleValueTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+    public SimpleValueTransformerSupplierWithStore(final StreamsBuilder builder, final Serde<K> keyserde, final Serde<V> valserde, final String storeName) {
         super(builder, keyserde, valserde, storeName);
     }
 
@@ -50,7 +50,7 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
             implements ValueTransformerWithStore<K, V, V> {
 
         @Override
-        public abstract V transform(V current);
+        public abstract V transform(final V current);
 
         /**
          *
@@ -59,7 +59,7 @@ public abstract class SimpleValueTransformerSupplierWithStore<K, V>
          * @return
          */
         @Override
-        public abstract V transform(V previous, V current);
+        public abstract V transform(final V previous, final V current);
 
     }
 }

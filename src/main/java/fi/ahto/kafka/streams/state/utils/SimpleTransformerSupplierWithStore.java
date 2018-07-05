@@ -54,7 +54,7 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
      * @param valserde  Serde for persisting the value in the statestore
      * @param storeName    statestore's name
      */
-    public SimpleTransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+    public SimpleTransformerSupplierWithStore(final StreamsBuilder builder, final Serde<K> keyserde, final Serde<V> valserde, final String storeName) {
         super(builder, keyserde, valserde, storeName);
     }
 
@@ -73,7 +73,7 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
          * @return
          */
         @Override
-        public KeyValue<K, V> transform(K key, V previous, V current) {
+        public KeyValue<K, V> transform(final K key, final V previous, final V current) {
             V transformed = transformValue(previous, current);
             return KeyValue.pair(key, transformed);
         }
@@ -84,6 +84,6 @@ public abstract class SimpleTransformerSupplierWithStore<K, V>
          * @param current
          * @return
          */
-        protected abstract V transformValue(V previous, V current);
+        protected abstract V transformValue(final V previous, final V current);
     }
 }

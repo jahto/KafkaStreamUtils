@@ -92,7 +92,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
      * @param valserde  Serde for persisting the value in the statestore
      * @param storeName    statestore's name
      */
-    public TransformerSupplierWithStore(StreamsBuilder builder, Serde<K> keyserde, Serde<V> valserde, String storeName) {
+    public TransformerSupplierWithStore(final StreamsBuilder builder, final Serde<K> keyserde, final Serde<V> valserde, final String storeName) {
         StoreBuilder<KeyValueStore<K, V>> store = Stores.keyValueStoreBuilder(Stores.persistentKeyValueStore(storeName),
                 keyserde,
                 valserde)
@@ -122,21 +122,17 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
      * Implementation of Transformer.
      */
     protected abstract class TransformerImpl implements TransformerWithStore<K, V, VR > {
-
-        /**
-         *
-         */
         protected KeyValueStore<K, V> stateStore;
         protected ProcessorContext context;
 
         @Override
-        public void init(ProcessorContext pc) {
+        public void init(final ProcessorContext pc) {
             this.context = pc;
             this.stateStore = (KeyValueStore<K, V>) pc.getStateStore(storeName);
         }
 
         @Override
-        public VR transform(K key, V current) {
+        public VR transform(final K key, final V current) {
             V previous = stateStore.get(key);
             VR transformed = transform(key, previous, current);
             stateStore.put(key, current);
@@ -151,7 +147,7 @@ public abstract class TransformerSupplierWithStore<K, V, VR extends KeyValue<?, 
          * @return
          */
         @Override
-        public abstract VR transform(K key, V previous, V current);
+        public abstract VR transform(final K key, final V previous, final V current);
 
         @Override
         @SuppressWarnings("deprecation")

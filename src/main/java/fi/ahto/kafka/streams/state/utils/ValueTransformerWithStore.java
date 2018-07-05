@@ -31,5 +31,5 @@ public interface ValueTransformerWithStore<K, V, VR> extends ValueTransformer<V,
      * @param current
      * @return
      */
-    VR transform(V previous, V current);
+    VR transform(final V previous, final V current);
 }
