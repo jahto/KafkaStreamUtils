@@ -17,7 +17,6 @@ package fi.ahto.kafka.streams.state.utils;
 
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.StreamsBuilder;
-import org.apache.kafka.streams.kstream.ValueTransformer;
 import org.apache.kafka.streams.kstream.ValueTransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -117,13 +116,6 @@ public abstract class ValueTransformerSupplierWithStore<K, V, VR>
          */
         @Override
         public abstract VR transform(final V previous, final V current);
-
-        @Override
-        @SuppressWarnings("deprecation")
-        public VR punctuate(long l) {
-            // Not needed and also deprecated.
-            return null;
-        }
 
         @Override
         public final void close() {

@@ -35,10 +35,10 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.apache.kafka.streams.Consumed;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.kstream.Transformer;
@@ -59,6 +59,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.annotation.KafkaStreamsDefaultConfiguration;
+import org.springframework.kafka.config.KafkaStreamsConfiguration;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
@@ -66,8 +67,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerde;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.test.EmbeddedKafkaBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.kafka.test.rule.KafkaEmbedded;
 import org.springframework.kafka.test.utils.KafkaTestUtils;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringRunner;
@@ -93,7 +94,7 @@ public class SimpleTransformerTests {
     public static final String TRANSFORMED_TOPIC = "transformed-topic";
 
     @Autowired
-    private KafkaEmbedded embeddedKafka;
+    private EmbeddedKafkaBroker embeddedKafka;
 
     @Autowired
     private KafkaTemplate<String, CommonData> inputKafkaTemplate;
@@ -136,7 +137,7 @@ public class SimpleTransformerTests {
             return true;
         }
 
-        public CommonData() {};
+        public CommonData() {}
         
         public CommonData(String VehicleId, Instant RecordTime, Integer Delay, Integer DelayChange, Integer MeasurementLength) {
             this.VehicleId = VehicleId;
@@ -207,11 +208,11 @@ public class SimpleTransformerTests {
     @Configuration
     @EnableKafka
     @EnableKafkaStreams
-    public static class KafkaStreamsConfiguration {
-
-        @Value("${" + KafkaEmbedded.SPRING_EMBEDDED_KAFKA_BROKERS + "}")
+    public static class KafkaStreamsConfig {
+        
+        @Value("${" + EmbeddedKafkaBroker.SPRING_EMBEDDED_KAFKA_BROKERS + "}")
         private String brokerAddresses;
-
+        
         @Bean
         public KafkaTemplate<?, ?> kafkaTemplate() {
             LOG.debug("KafkaTemplate constructed");
@@ -272,12 +273,11 @@ public class SimpleTransformerTests {
         }
 
         @Bean(name = KafkaStreamsDefaultConfiguration.DEFAULT_STREAMS_CONFIG_BEAN_NAME)
-        public StreamsConfig kStreamsConfigs() {
+        public KafkaStreamsConfiguration kStreamsConfigs() {
             Map<String, Object> props = new HashMap<>();
             props.put(StreamsConfig.APPLICATION_ID_CONFIG, "test-transformer");
             props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, this.brokerAddresses);
-            props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-            return new StreamsConfig(props);
+            return new KafkaStreamsConfiguration(props);
         }
 
         @Bean
