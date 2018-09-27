@@ -288,8 +288,14 @@ public class ValueTransformerTests {
         public ProducerFactory<?, ?> producerFactory() {
             final JsonSerde<InputData> valueserde = new JsonSerde<>(customizedObjectMapper());
             DefaultKafkaProducerFactory<String, InputData> factory = new DefaultKafkaProducerFactory<>(producerConfigs());
+
+            // Strange, must explicitly set addTypeInfo false...
+            // TODO: Remove when spring-kafka 2.2.0 gets released.
+            // Tested and confirmed that https://github.com/spring-projects/spring-kafka/commit/7beaa606e28ef54d92e0b1831df6c229c560ea96
+            // fixes the problem.
             JsonSerializer ser = (JsonSerializer) valueserde.serializer();
             ser.setAddTypeInfo(false);
+
             factory.setValueSerializer(valueserde.serializer());
             LOG.debug("ProducerFactory constructed");
             return factory;
